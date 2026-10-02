@@ -77,8 +77,8 @@ npx --yes wrangler@4 dev --config .deploy/wrangler.json
 
 Open the local URL reported by Wrangler. Opening the HTML as a local file keeps
 normal offline gameplay and shows an offline message in the score panel.
-Only the staged game, landing redirect and `SOUNDS/` are published. Neither
-source files are static assets. Do not host the repo root.
+Only the staged game, landing redirect and `SOUNDS/` are published. Source
+files are not static assets. Do not host the repo root.
 
 ## Score behaviour and limits
 
