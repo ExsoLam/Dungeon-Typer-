@@ -4,8 +4,7 @@ Durable conventions for this repo. Read this first. There is no `STATUS.md` here
 live state is in the issues and PRs, and the README covers the game itself.
 
 A browser typing game in one HTML file, with hosted scores in Cloudflare D1.
-The older GitHub issue workflow still writes `scores.json`; keep it intact until
-its retirement is explicitly agreed. Three stages, strict and original modes,
+The earlier GitHub issue score pipeline has been retired. Three stages, strict and original modes,
 rules reverse engineered from The Typing of the Dead.
 
 ## Start here: preserve the repo and local work
@@ -38,7 +37,7 @@ using it. Establish ownership; if it is uncertain, ask the owner before switchin
   `https://pr-N.dtyper.workers.dev`. Production and preview have different D1
   databases. Preserve their bindings, scope, migrations, browser retry queue and
   stored scores. Use additive migrations; obtain explicit approval for deleting
-  scores, destructive migrations or importing legacy scores into production.
+  scores, or destructive migrations.
 - The failing GitHub Pages workflow has been removed. Cloudflare is the only game
   and score host. Do not add a competing publisher.
 
@@ -51,13 +50,11 @@ that a deployment or watcher is running; verify those separately.
 | Path | What it is |
 | --- | --- |
 | `typing_dungeon_v21.html` | The whole game. Single file, no build, no dependencies. Engine, renderer, procedural sound, embedded art, word lists. About 2.2 MB, mostly embedded assets. |
-| `scores.json` | Leaderboard data. Written by the workflow, not by hand. |
-| `.github/workflows/process-score.yml` | Turns `[SCORE]` issues into `scores.json` entries. Contains the validation logic as inline Python. |
 | `server/worker.mjs`, `server/migrations/` | Hosted score API and D1 schema. |
-| `scripts/`, `tests/` | Host staging, legacy import tooling and verification. |
+| `scripts/`, `tests/` | Host staging and verification. |
 | `.github/workflows/host-game.yml` | Cloudflare production and isolated PR deployments. |
 | `HOSTING.md` | Database setup, deployment and playback loop. |
-| `README.md` | Setup, controls, modes, scoring, enemy behaviour and the score pipeline. |
+| `README.md` | Setup, controls, modes, scoring, enemy behaviour and the hosted leaderboard. |
 
 ## Key identifiers
 
@@ -66,12 +63,8 @@ that a deployment or watcher is running; verify those separately.
 | Repo | `ExsoLam/Dungeon-Typer-`, public, default branch `main` |
 | Game entry point | `typing_dungeon_v21.html`, canvas 960x540, scales to 16:9 |
 | Modes | `strict` (case and spaces count, score x1.0), `original` (both ignored, score x0.75) |
-| Score issue title | `[SCORE] <mode> - <score> - <submission id>` |
-| Score issue body | `**Name:**`, `**Mode:**`, `**Score:**`, `**Submission ID:**`, plus any extra `**Label:** value` lines |
-| Workflow settings | `ALLOWED_MODES` `strict,original`, `MAX_SCORE` `1000000`, `TOP_N` `100`, `ALLOWED_AUTHORS` = repository owner |
 | `localStorage` keys | `tod_poc_best`, `tod_poc_best_orig`, `tod_poc_mode` |
 | Hosted leaderboard | `server/worker.mjs`, with separate strict/original best scores in D1. |
-| Legacy issue Worker | External to this repo; creates the `[SCORE]` issues. |
 
 ## Hard rules
 
@@ -84,9 +77,7 @@ that a deployment or watcher is running; verify those separately.
 - **Keep it one file, no build, no dependencies.** No bundler, no CDN, no npm, no `package.json`. The value of this project is that the file opens in a browser and runs. If a change needs a toolchain, the change is wrong.
 - **Keep the game logic free of the DOM.** `G`, `tierFor`, `pickFrom`, `key`, `kill`, `update` and the rest must not touch `document` or `window`, so they stay testable headlessly. Browser glue belongs at the bottom of the file behind the `typeof window` guard.
 - **Do not extract or republish the word lists.** They come from The Typing of the Dead (SEGA) and the repo has no licence file. Leave them embedded in the game; do not copy them into another file, repo or gist.
-- **Never hand-edit `scores.json` to change a score.** The workflow owns that file and commits it. Manual edits are only for correcting structural damage, and the next accepted score will re-sort and re-trim the board.
-- **Never test the pipeline by opening a `[SCORE]` issue by hand.** The workflow ignores issues whose author is not in `ALLOWED_AUTHORS`, so a hand-made issue does nothing and stays open, which looks like a broken workflow. It also cannot be undone cleanly: an accepted score is a permanent board entry committed by the bot. Run the Python locally instead (below).
-- **Branch and open a PR; do not push to `main`.** `main` receives commits from the leaderboard bot. Keep human changes on a branch, and keep a PR to one concern.
+- **Branch and open a PR; do not push to `main`.** Keep changes on a branch, and keep a PR to one concern.
 - **Treat `typing_dungeon_v21.html` as the public entry point.** Unverified, but something outside this repo (the Worker or a host) almost certainly points at that path, so check before renaming or moving it.
 
 ## Testing
@@ -117,31 +108,6 @@ For specific changes, "verified" means:
    browser and exercise the thing you changed. At minimum: Enter starts the run, typing
    a word kills a monster, the stage results screen appears, and the console has no
    errors. A rendering change is not verified by reading code.
-3. **Run the workflow's Python locally** for any change to `process-score.yml`. Extract
-   it, run it in a scratch directory against a copy of `scores.json`, and leave
-   `GITHUB_OUTPUT` unset so the outputs print instead of going to the Actions runner:
-
-       # 1. from the repo root, pull the heredoc body out of the workflow's "Process score" step
-       python3 - <<'PY'
-       import re
-       src = open('.github/workflows/process-score.yml', encoding='utf-8').read()
-       body = re.search(r"python3 - <<'PY'\n(.*?)\n\s*PY\n", src, re.S).group(1)
-       body = "\n".join(l[10:] if l.startswith("          ") else l for l in body.split("\n"))
-       open('score.py', 'w', encoding='utf-8').write(body)
-       PY
-
-       # 2. run it against a copy of the board, never in the repo
-       mkdir -p /tmp/dt && cp scores.json score.py /tmp/dt/ && cd /tmp/dt
-       BODY=$'**Name:** Test\n**Mode:** strict\n**Score:** 9999'
-       env -u GITHUB_OUTPUT ALLOWED_MODES="strict,original" MAX_SCORE=1000000 TOP_N=100 \
-         ALLOWED_AUTHORS="exsolam" ISSUE_TITLE='[SCORE] strict - 9999 - test-1' \
-         ISSUE_BODY="$BODY" ISSUE_AUTHOR=exsolam ISSUE_NUMBER=90 python3 score.py
-
-   Worth covering all four paths, because they behave differently: a new score
-   (`result=accepted`, plus a rank), a repeated submission id (`result=duplicate`), an
-   unknown mode (`result=rejected`, with a reason), and a foreign author
-   (`result=ignored`, which is also the one that leaves the issue open with no comment).
-   Do this on a copy, never in the repo.
 
 ## Known gaps
 
@@ -149,7 +115,7 @@ For specific changes, "verified" means:
 - `beginDoors()` never runs. The two-door branch after stage 1 (`beginDoors`, `updateDoors`, `BRANCH`, `segName`) has no call site, so the Sewers and Ossuary branch is dead code and the README does not document it. Either wire it up or delete it.
 - Hosted v21 submits completed runs to the same-origin Worker. Offline file play
   remains available; browser identity has no cross-device recovery and submitted
-  scores are client-reported. Legacy import is optional and has not been executed.
+  scores are client-reported. Scores from the retired issue pipeline were not imported.
 
 ## PR ownership and live testing
 
@@ -218,4 +184,4 @@ comments on every poll is worse than no watcher.
 - **House style: no em dashes.** Direct and concise. NZ spelling.
 - Conventional commit messages: `docs:`, `fix:`, `feat:`, `ci:`, `chore:`.
 - The README is the public face of the repo and is written for a player first, then a contributor. Keep the two audiences separate.
-- Only `strict` and `original` are real modes. The game sends those two, and the workflow's `ALLOWED_MODES` matches; adding a mode means changing both.
+- Only `strict` and `original` are real modes. The game sends those two and the Worker validates them; adding a mode means changing both.

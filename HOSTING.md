@@ -78,7 +78,7 @@ npx --yes wrangler@4 dev --config .deploy/wrangler.json
 Open the local URL reported by Wrangler. Opening the HTML as a local file keeps
 normal offline gameplay and shows an offline message in the score panel.
 Only the staged game, landing redirect and `SOUNDS/` are published. Neither
-`scores.json` nor source files are static assets. Do not host the repo root.
+source files are static assets. Do not host the repo root.
 
 ## Score behaviour and limits
 
@@ -104,17 +104,11 @@ browser submission together if scoring changes; cosmetic changes keep it.
 Weekly boards and run-history screens can query the retained runs but are not yet
 exposed in this first release.
 
-## Existing scores and retirement
+## Retired issue pipeline
 
-This PR keeps the issue workflow intact until production is verified. Do not send
-new submissions through both paths. Existing `scores.json` records have display
-names, not browser identities, and cannot safely be linked to new players by name.
-An explicit legacy import should preserve those records under separate legacy
-identities and omit their extra metadata, including IP addresses. Run `python3 scripts/import-legacy.py` to generate `.deploy/legacy.sql`, review it,
-then apply it with `wrangler d1 execute DB --remote --file .deploy/legacy.sql
---config .deploy/wrangler.json` using a production configuration. Importing is
-idempotent and excludes all extra metadata. It does not link historical entries
-to new browser players or retire the issue workflow automatically.
+The earlier GitHub issue workflow (`[SCORE]` issues turned into `scores.json`) has
+been removed. Its two historical scores were deliberately not imported, so the
+hosted boards started empty. They remain in git history.
 
 ## Preview cleanup
 
