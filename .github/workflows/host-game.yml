@@ -27,7 +27,7 @@ jobs:
       url: ${{ steps.publish.outputs.url }}
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
       D1_DATABASE_ID: ${{ github.event_name == 'pull_request' && vars.D1_PREVIEW_DATABASE_ID || vars.D1_PRODUCTION_DATABASE_ID }}
       PREVIEW_DATABASE_ID: ${{ vars.D1_PREVIEW_DATABASE_ID }}
       PRODUCTION_DATABASE_ID: ${{ vars.D1_PRODUCTION_DATABASE_ID }}
@@ -37,7 +37,7 @@ jobs:
       - name: Require deployment configuration
         run: |
           test -n "$CLOUDFLARE_API_TOKEN" || { echo 'Add CLOUDFLARE_API_TOKEN secret.'; exit 1; }
-          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo 'Add CLOUDFLARE_ACCOUNT_ID secret.'; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo 'Add CLOUDFLARE_ACCOUNT_ID variable.'; exit 1; }
           test -n "$PREVIEW_DATABASE_ID" && test -n "$PRODUCTION_DATABASE_ID" || { echo 'Set both D1 database ID variables.'; exit 1; }
           test "$PREVIEW_DATABASE_ID" != "$PRODUCTION_DATABASE_ID" || { echo 'Preview and production must use different databases.'; exit 1; }
           if [ "$SCORE_SCOPE" = production ] && [ "$GITHUB_REF" != refs/heads/main ]; then

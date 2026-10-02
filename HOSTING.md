@@ -37,7 +37,7 @@ In GitHub Settings > Secrets and variables > Actions, add:
 | Kind | Name | Value |
 | --- | --- | --- |
 | Secret | `CLOUDFLARE_API_TOKEN` | Scoped Cloudflare deployment token |
-| Secret | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account ID |
+| Variable | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account ID |
 | Variable | `D1_PRODUCTION_DATABASE_ID` | Production D1 database ID |
 | Variable | `D1_PREVIEW_DATABASE_ID` | Different preview D1 database ID |
 
