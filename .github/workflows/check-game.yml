@@ -1,0 +1,32 @@
+name: Check game and score service
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python3 scripts/check-game.py
+      - run: node --check server/worker.mjs
+      - run: node tests/game-flow.mjs
+      - run: node tests/validation.mjs
+      - run: python3 tests/database.py
+      - name: Test local Worker and database
+        run: |
+          node scripts/stage-host.mjs
+          npx --yes wrangler@4 d1 migrations apply DB --local --config .deploy/wrangler.json
+          npx --yes wrangler@4 dev --config .deploy/wrangler.json --port 8787 > /tmp/worker.log 2>&1 &
+          worker_pid=$!
+          trap 'kill "$worker_pid"' EXIT
+          for attempt in $(seq 1 30); do
+            if curl -sf http://localhost:8787/api/health > /dev/null; then break; fi
+            sleep 1
+          done
+          TEST_URL=http://localhost:8787 node tests/api-live.mjs

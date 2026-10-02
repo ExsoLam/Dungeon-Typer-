@@ -1,0 +1,75 @@
+name: Host game and PR previews
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  deployments: write
+concurrency:
+  group: game-host-${{ github.event.pull_request.number || 'production' }}
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'production' }}
+      url: ${{ steps.publish.outputs.url }}
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      D1_DATABASE_ID: ${{ github.event_name == 'pull_request' && vars.D1_PREVIEW_DATABASE_ID || vars.D1_PRODUCTION_DATABASE_ID }}
+      PREVIEW_DATABASE_ID: ${{ vars.D1_PREVIEW_DATABASE_ID }}
+      PRODUCTION_DATABASE_ID: ${{ vars.D1_PRODUCTION_DATABASE_ID }}
+      SCORE_SCOPE: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'production' }}
+      REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Require deployment configuration
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo 'Add CLOUDFLARE_API_TOKEN secret.'; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo 'Add CLOUDFLARE_ACCOUNT_ID secret.'; exit 1; }
+          test -n "$PREVIEW_DATABASE_ID" && test -n "$PRODUCTION_DATABASE_ID" || { echo 'Set both D1 database ID variables.'; exit 1; }
+          test "$PREVIEW_DATABASE_ID" != "$PRODUCTION_DATABASE_ID" || { echo 'Preview and production must use different databases.'; exit 1; }
+          if [ "$SCORE_SCOPE" = production ] && [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo 'Production deployment requires main.'; exit 1
+          fi
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python3 scripts/check-game.py
+      - run: node tests/validation.mjs && python3 tests/database.py
+      - run: node scripts/stage-host.mjs
+      - name: Apply database migrations
+        run: npx --yes wrangler@4 d1 migrations apply DB --remote --config .deploy/wrangler.json
+      - name: Publish game
+        id: publish
+        run: |
+          set -o pipefail
+          npx --yes wrangler@4 deploy --config .deploy/wrangler.json | tee /tmp/game-deploy.log
+          python3 - <<'PY'
+          import os,re,pathlib
+          log=pathlib.Path('/tmp/game-deploy.log').read_text()
+          urls=re.findall(r'https://[a-z0-9.-]+\.workers\.dev',log)
+          if not urls: raise SystemExit('No deployment URL returned')
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f: f.write('url='+urls[-1]+'\n')
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f:
+              f.write('Play: '+urls[-1]+'/typing_dungeon_v21.html\n\nCommit: '+os.environ['REVISION']+'\n\nScore scope: '+os.environ['SCORE_SCOPE']+'\n')
+          PY
+      - name: Verify deployed revision
+        env:
+          GAME_URL: ${{ steps.publish.outputs.url }}
+        run: |
+          curl --fail --retry 3 "$GAME_URL/api/health" -o /tmp/health.json
+          python3 - <<'PY'
+          import json,os
+          d=json.load(open('/tmp/health.json'))
+          assert d['revision']==os.environ['REVISION'],d
+          assert d['scope']==os.environ['SCORE_SCOPE'],d
+          PY
+          curl --fail --retry 3 "$GAME_URL/api/leaderboard?mode=strict"
