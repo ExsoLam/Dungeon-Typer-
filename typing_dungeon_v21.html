@@ -673,9 +673,9 @@ hooks.kill = o => {
   snd.kill();
 };
 /* ---- the player's bow: an arrow leaves the bow for every correct key, purely visual (the hit resolves in the game logic) ---- */
-const BOW = { x: CX, y: HY - 10 };   // the bow rises from behind the HUD panel, limbs curving away from the shooter
+const BOW = { x: W - 100, y: HY - 12 };   // foreground bow stays to the right of the aiming lanes
 function shootArrow(tx, ty) {
-  const x0 = BOW.x - 56 + (Math.random() - 0.5) * 16, y0 = BOW.y - 37;
+  const x0 = BOW.x - 20, y0 = BOW.y - 30;
   const d = Math.hypot(tx - x0, ty - y0);
   arrows.push({ x0, y0, tx, ty, d, t0: NOW, dur: Math.max(0.05, Math.min(0.13, d / 2600)) });
   bowT = NOW; snd.bow();
@@ -693,25 +693,60 @@ function drawArrows(c) {
   }
 }
 function drawBow(c) {
-  const t = Math.max(0, 1 - (NOW - bowT) / 0.22), kick = Math.sin(Math.min(1, t) * Math.PI) * 10;
-  c.save(); c.translate(BOW.x, BOW.y + kick); c.lineCap = "round";
-  const U = [-64, -108], G = [-96, -14], L = [-48, 34];        // upper tip, grip, lower tip (the lower limb leaves the frame)
-  const limb = () => { c.beginPath(); c.moveTo(U[0], U[1]); c.quadraticCurveTo(-134, -58, G[0], G[1]); c.quadraticCurveTo(-122, 8, L[0], L[1]); };
-  c.lineWidth = 14; c.strokeStyle = "rgba(6,4,2,.85)"; limb(); c.stroke();                       // dark edge so the limb reads against the stone
-  c.lineWidth = 10; c.strokeStyle = lg(c, -140, 0, -40, 0, [[0, "#2c1a0a"], [0.45, "#8a6438"], [1, "#4a2f14"]]); limb(); c.stroke();
-  c.lineWidth = 3.4; c.strokeStyle = "rgba(214,182,132,.34)"; limb(); c.stroke();                // highlight, so the limb has some round
-  c.lineWidth = 15; c.strokeStyle = "#1c1106"; c.beginPath(); c.moveTo(-104, -30); c.lineTo(-90, 2); c.stroke();   // grip
-  c.fillStyle = "rgba(20,15,10,.9)"; c.beginPath(); c.ellipse(-95, -14, 14, 19, 0.18, 0, 6.283); c.fill();          // the hand on the grip
-  const nock = [-56 - t * 16, -37];                            // straight at rest, snapping forward when loosed
-  c.lineWidth = 2; c.strokeStyle = "rgba(232,228,212,.82)";
-  c.beginPath(); c.moveTo(U[0], U[1]); c.lineTo(nock[0], nock[1]); c.lineTo(L[0], L[1]); c.stroke();
-  if (t > 0.04) {                                              // the arrow, still leaving the string
-    c.globalAlpha = Math.min(1, t * 3);
-    c.strokeStyle = "#8a6a3a"; c.lineWidth = 2.4; c.beginPath(); c.moveTo(nock[0], nock[1] + 4); c.lineTo(nock[0] + 16, nock[1] - 92); c.stroke();
-    c.fillStyle = "#d8dde4"; c.beginPath(); c.moveTo(nock[0] + 19, nock[1] - 104); c.lineTo(nock[0] + 11, nock[1] - 90); c.lineTo(nock[0] + 22, nock[1] - 86); c.closePath(); c.fill();
-    c.fillStyle = "#b03028"; c.beginPath(); c.moveTo(nock[0], nock[1] + 4); c.lineTo(nock[0] - 7, nock[1] + 13); c.lineTo(nock[0] + 1, nock[1] + 10); c.lineTo(nock[0] + 5, nock[1] + 16); c.closePath(); c.fill();
-    c.globalAlpha = 1;
+  const age = NOW - bowT, recoil = Math.max(0, 1 - age / 0.24);
+  const flex = Math.sin(Math.min(1, Math.max(0, age / 0.24)) * Math.PI) * recoil;
+  c.save(); c.beginPath(); c.rect(0, 0, W, HY); c.clip();
+  c.translate(BOW.x + flex * 3, BOW.y + flex * 4); c.rotate(flex * 0.025);
+  c.lineCap = "round"; c.lineJoin = "round";
+  // The leather glove and sleeve disappear behind the HUD, anchoring the weapon.
+  c.fillStyle = lg(c, -104, -24, -60, 30, [[0, "#302a20"], [0.5, "#685b41"], [1, "#29261d"]]);
+  c.beginPath(); c.moveTo(-105, 65); c.lineTo(-99, 12); c.bezierCurveTo(-114, -8, -105, -29, -92, -35);
+  c.bezierCurveTo(-80, -39, -65, -26, -65, -10); c.lineTo(-73, 14); c.lineTo(-70, 65); c.closePath(); c.fill();
+  c.strokeStyle = "#241e16"; c.lineWidth = 1.5; c.stroke();
+  c.strokeStyle = "rgba(170,149,108,.4)"; c.lineWidth = 1;
+  c.beginPath(); c.moveTo(-98, 12); c.lineTo(-82, 16); c.lineTo(-76, 54); c.stroke();
+  // A tapered wooden recurve, seen from the shooter's right side.
+  const limb = () => {
+    c.beginPath(); c.moveTo(-18, -164); c.bezierCurveTo(-13, -147, -28, -127, -43, -102);
+    c.bezierCurveTo(-58, -75, -70, -44, -70, -14); c.bezierCurveTo(-70, 20, -56, 60, -39, 95);
+    c.bezierCurveTo(-22, 125, -13, 143, -18, 160); c.lineTo(-23, 158);
+    c.bezierCurveTo(-25, 139, -41, 119, -54, 94); c.bezierCurveTo(-72, 57, -84, 22, -82, -14);
+    c.bezierCurveTo(-83, -50, -67, -85, -52, -109); c.bezierCurveTo(-37, -132, -25, -148, -23, -165); c.closePath();
+  };
+  limb(); c.fillStyle = lg(c, -86, 0, -15, 0, [[0, "#281b12"], [0.3, "#68492b"], [0.6, "#a67e48"], [0.82, "#73522e"], [1, "#352719"]]);
+  c.shadowColor = "rgba(0,0,0,.6)"; c.shadowBlur = 5; c.shadowOffsetX = 2; c.fill();
+  c.shadowBlur = 0; c.shadowOffsetX = 0; c.lineWidth = 1.8; c.strokeStyle = "#21180f"; c.stroke();
+  // Narrow edge light and grain follow the limbs rather than outlining a tube.
+  c.strokeStyle = "rgba(224,185,118,.5)"; c.lineWidth = 1;
+  c.beginPath(); c.moveTo(-24, -149); c.bezierCurveTo(-40, -116, -69, -75, -73, -38); c.stroke();
+  c.beginPath(); c.moveTo(-72, 18); c.bezierCurveTo(-66, 63, -39, 120, -25, 143); c.stroke();
+  c.strokeStyle = "rgba(38,24,12,.45)";
+  c.beginPath(); c.moveTo(-46, -107); c.bezierCurveTo(-61, -78, -75, -52, -77, -33); c.stroke();
+  c.beginPath(); c.moveTo(-78, 26); c.bezierCurveTo(-68, 65, -52, 91, -39, 111); c.stroke();
+  // Dark leather wrapping at the grip; small angled seams make its scale clear.
+  c.save(); c.translate(-76, -12); c.rotate(-0.04);
+  c.fillStyle = lg(c, -8, 0, 9, 0, [[0, "#211a14"], [0.5, "#51402e"], [1, "#292019"]]); c.fillRect(-8, -17, 16, 40);
+  for (let y = -14; y < 23; y += 6) {
+    c.strokeStyle = "#1e1711"; c.lineWidth = 1.5; c.beginPath(); c.moveTo(-8, y); c.lineTo(8, y + 3); c.stroke();
+    c.strokeStyle = "rgba(177,143,98,.3)"; c.lineWidth = 0.8; c.beginPath(); c.moveTo(-7, y + 1); c.lineTo(7, y + 4); c.stroke();
   }
+  c.restore();
+  c.fillStyle = "#66563c"; c.strokeStyle = "#2c2419"; c.lineWidth = 1;
+  for (let y = -23; y <= -2; y += 7) {
+    c.beginPath(); c.roundRect(-81, y, 19, 7, 3); c.fill(); c.stroke();
+  }
+  // Fine taut string, with a brief release vibration after each correct key.
+  const nx = -20 + Math.sin(age * 65) * recoil * 5, ny = -30;
+  c.strokeStyle = "rgba(17,13,9,.7)"; c.lineWidth = 2;
+  c.beginPath(); c.moveTo(-20, -162); c.lineTo(nx, ny); c.lineTo(-20, 158); c.stroke();
+  c.strokeStyle = "rgba(217,202,164,.78)"; c.lineWidth = 0.8; c.stroke();
+  // A nocked arrow returns after release, aligned with the outgoing projectile.
+  c.globalAlpha = Math.min(1, Math.max(0, age / 0.16));
+  c.strokeStyle = "#32251b"; c.lineWidth = 3; c.beginPath(); c.moveTo(nx + 7, ny + 3); c.lineTo(-156, -94); c.stroke();
+  c.strokeStyle = "#b3915b"; c.lineWidth = 1.2; c.stroke();
+  c.fillStyle = "#89918b"; c.beginPath(); c.moveTo(-168, -100); c.lineTo(-154, -100); c.lineTo(-158, -89); c.closePath(); c.fill();
+  c.strokeStyle = "#d1d3c7"; c.lineWidth = 0.8; c.beginPath(); c.moveTo(-168, -100); c.lineTo(-158, -94); c.stroke();
+  c.fillStyle = "#794331"; c.beginPath(); c.moveTo(nx + 2, ny + 1); c.lineTo(nx + 18, ny - 2); c.lineTo(nx + 12, ny + 6); c.closePath(); c.fill();
   c.restore();
 }
 function drawDaggers(c) {
