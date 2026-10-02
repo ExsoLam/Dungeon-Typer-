@@ -1,5 +1,11 @@
 {
   "easy": [],
-  "normal": [],
+  "normal": [
+    {
+      "name": "TestPlayer2",
+      "score": 5678,
+      "submission_id": "09a2195a-a7d7-4d60-bada-03de75e7842e"
+    }
+  ],
   "hard": []
 }
