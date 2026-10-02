@@ -41,7 +41,11 @@ In GitHub Settings > Secrets and variables > Actions, add:
 | Variable | `D1_PRODUCTION_DATABASE_ID` | Production D1 database ID |
 | Variable | `D1_PREVIEW_DATABASE_ID` | Different preview D1 database ID |
 
-The token needs Account Workers Scripts Edit and D1 Edit on the selected account.
+The token needs Workers Admin and D1 Edit on the selected account. Creating the
+first Worker for each new PR requires the Workers product-level Admin role;
+Editor is enough only for updating an existing Worker. Older dashboards may show
+the legacy Account Workers Scripts Edit permission instead. See the current
+[Workers permissions](https://developers.cloudflare.com/workers/authorization/workers/).
 Do not put the token in a PR, game source or chat. Only same-repository PRs deploy
 with secrets; fork PRs run checks. People allowed to push branches in this repo
 must be trusted to use the deployment token. Use GitHub environment approvals if
