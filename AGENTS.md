@@ -95,6 +95,43 @@ There is no test suite, no build and no CI on pull requests. The only workflow r
 - `beginDoors()` never runs. The two-door branch after stage 1 (`beginDoors`, `updateDoors`, `BRANCH`, `segName`) has no call site, so the Sewers and Ossuary branch is dead code and the README does not document it. Either wire it up or delete it.
 - The game file does not submit scores. There is no `fetch`, `XMLHttpRequest` or `sendBeacon` in it; submissions come from the Worker.
 
+## Watching this repo's pull requests (for agents)
+
+If you are an agent working in this repo, set up a watch so that PR activity reaches a
+human without anyone polling by hand. Two mechanisms; the choice is about reachability,
+not preference.
+
+**1. Webhook route: instant, but needs a URL GitHub can reach.** GitHub POSTs PR events to
+a Hermes webhook route, which starts an agent run and can reply on the PR itself.
+
+```sh
+hermes webhook subscribe dungeon-typer-prs \
+  --events "pull_request,pull_request_review,pull_request_review_comment" \
+  --prompt "PR #{pull_request.number} {action}: {pull_request.title} by {pull_request.user.login}
+Branch {pull_request.head.ref} into {pull_request.base.ref}
+{pull_request.body}
+Read the diff, run what the testing section above requires, and report what is verified versus assumed." \
+  --deliver github_comment
+```
+
+Requires the webhook platform enabled (`hermes webhook list` says so if it is not) and a
+gateway URL that GitHub can reach, so a local machine needs a tunnel (cloudflared) or a
+public host. **Adding the webhook is a repository-owner step** (Settings -> Webhooks needs
+admin), so a collaborator cannot finish this route alone.
+
+**2. Cron poll: no exposure, works anywhere, and the sensible default here.** A scheduled
+job checks the PR list and only mentions a PR whose head commit changed since the last
+run, keeping the seen SHAs so the same state is never reported twice.
+
+```sh
+gh pr list --repo ExsoLam/Dungeon-Typer- --state open \
+  --json number,title,headRefOid,updatedAt,author
+```
+
+Prefer this route unless a public endpoint already exists: it needs no admin action and no
+tunnel. Whichever route you use, **stay quiet when nothing has changed**. A watcher that
+comments on every poll is worse than no watcher.
+
 ## Conventions
 
 - **House style: no em dashes.** Direct and concise. NZ spelling.

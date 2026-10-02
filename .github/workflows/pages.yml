@@ -1,0 +1,58 @@
+name: Deploy game to GitHub Pages
+
+# Publishes the game (and the sounds folder) as a static site, so a change can be
+# checked in a browser without cloning anything.
+#
+# One-time setup, repository owner only: Settings -> Pages -> Build and deployment ->
+# Source -> "GitHub Actions". Until that is set, this workflow runs and fails with a
+# message about the Pages site, which is expected rather than a fault in this file.
+#
+# Deliberately NOT published: scores.json, README.md and AGENTS.md. Publishing from the
+# repository root would also work and needs no workflow at all, but it would put
+# scores.json (which holds submission metadata) on a public URL.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Stage the site
+        run: |
+          mkdir -p _site
+          cp typing_dungeon_v21.html _site/
+          cp -r SOUNDS _site/ 2>/dev/null || true
+          cp pages/index.html _site/index.html
+          touch _site/.nojekyll
+          echo "staged:"
+          find _site -type f | sort
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+      - name: Deploy to Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
