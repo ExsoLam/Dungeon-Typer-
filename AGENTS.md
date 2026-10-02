@@ -1,0 +1,103 @@
+# Dungeon Typer
+
+Durable conventions for this repo. Read this first. There is no `STATUS.md` here:
+live state is in the issues and PRs, and the README covers the game itself.
+
+A browser typing game in one HTML file, plus a leaderboard that arrives as GitHub
+issues and is turned into `scores.json` by a workflow. Three stages, strict and
+original modes, rules reverse engineered from The Typing of the Dead.
+
+## Map
+
+| Path | What it is |
+| --- | --- |
+| `typing_dungeon_v21.html` | The whole game. Single file, no build, no dependencies. Engine, renderer, procedural sound, embedded art, word lists. 943 lines, about 2.2 MB, mostly base64. |
+| `scores.json` | Leaderboard data. Written by the workflow, not by hand. |
+| `.github/workflows/process-score.yml` | Turns `[SCORE]` issues into `scores.json` entries. Contains the validation logic as inline Python. |
+| `README.md` | Setup, controls, modes, scoring, enemy behaviour and the score pipeline. |
+
+## Key identifiers
+
+| Thing | Value |
+| --- | --- |
+| Repo | `ExsoLam/Dungeon-Typer-`, public, default branch `main` |
+| Game entry point | `typing_dungeon_v21.html`, canvas 960x540, scales to 16:9 |
+| Modes | `strict` (case and spaces count, score x1.0), `original` (both ignored, score x0.75) |
+| Score issue title | `[SCORE] <mode> - <score> - <submission id>` |
+| Score issue body | `**Name:**`, `**Mode:**`, `**Score:**`, `**Submission ID:**`, plus any extra `**Label:** value` lines |
+| Workflow settings | `ALLOWED_MODES` `strict,original`, `MAX_SCORE` `1000000`, `TOP_N` `100`, `ALLOWED_AUTHORS` = repository owner |
+| `localStorage` keys | `tod_poc_best`, `tod_poc_best_orig`, `tod_poc_mode` |
+| Leaderboard Worker | Not in this repo. It creates the `[SCORE]` issues. |
+
+## Hard rules
+
+- **Never read or grep the game file whole.** Six lines hold base64 blobs (currently 59, 516, 574, 829, 830, 831) and together they are about 2.1 MB of the file. A plain `grep` or `cat` over it dumps megabytes into your context and tells you nothing. Filter first, and re-check the line numbers rather than trusting the ones above, since they move when the file changes:
+
+      awk 'length($0)>1000 {print NR, length($0)}' typing_dungeon_v21.html
+      awk 'length($0)<400' typing_dungeon_v21.html | grep -n 'pattern'
+
+- **Edit the game with anchored patches, never a whole-file rewrite.** A full rewrite risks the base64 art and the word list, which are the parts nobody can regenerate. Change one unique string at a time.
+- **Keep it one file, no build, no dependencies.** No bundler, no CDN, no npm, no `package.json`. The value of this project is that the file opens in a browser and runs. If a change needs a toolchain, the change is wrong.
+- **Keep the game logic free of the DOM.** `G`, `tierFor`, `pickFrom`, `key`, `kill`, `update` and the rest must not touch `document` or `window`, so they stay testable headlessly. Browser glue belongs at the bottom of the file behind the `typeof window` guard.
+- **Do not extract or republish the word lists.** They come from The Typing of the Dead (SEGA) and the repo has no licence file. Leave them embedded in the game; do not copy them into another file, repo or gist.
+- **Never hand-edit `scores.json` to change a score.** The workflow owns that file and commits it. Manual edits are only for correcting structural damage, and the next accepted score will re-sort and re-trim the board.
+- **Never test the pipeline by opening a `[SCORE]` issue by hand.** The workflow ignores issues whose author is not in `ALLOWED_AUTHORS`, so a hand-made issue does nothing and stays open, which looks like a broken workflow. It also cannot be undone cleanly: an accepted score is a permanent board entry committed by the bot. Run the Python locally instead (below).
+- **Branch and open a PR; do not push to `main`.** `main` receives commits from the leaderboard bot. Keep human changes on a branch, and keep a PR to one concern.
+- **Treat `typing_dungeon_v21.html` as the public entry point.** Unverified, but something outside this repo (the Worker or a host) almost certainly points at that path, so check before renaming or moving it.
+
+## Testing
+
+There is no test suite, no build and no CI on pull requests. The only workflow runs on
+`issues: opened`, so a PR showing no checks is normal and proves nothing. What
+"verified" means here:
+
+1. **Syntax check the script block without a browser.** Cheap, catches a broken edit
+   immediately:
+
+       python3 -c "import re;s=open('typing_dungeon_v21.html',encoding='utf-8').read();open('/tmp/dt.js','w').write(re.search(r'<script>(.*)</script>',s,re.S).group(1))"
+       node --check /tmp/dt.js
+
+2. **Play it.** For any change to gameplay, rendering or controls, open the file in a
+   browser and exercise the thing you changed. At minimum: Enter starts the run, typing
+   a word kills a monster, the stage results screen appears, and the console has no
+   errors. A rendering change is not verified by reading code.
+3. **Run the workflow's Python locally** for any change to `process-score.yml`. Extract
+   it, run it in a scratch directory against a copy of `scores.json`, and leave
+   `GITHUB_OUTPUT` unset so the outputs print instead of going to the Actions runner:
+
+       # 1. from the repo root, pull the heredoc body out of the workflow's "Process score" step
+       python3 - <<'PY'
+       import re
+       src = open('.github/workflows/process-score.yml', encoding='utf-8').read()
+       body = re.search(r"python3 - <<'PY'\n(.*?)\n\s*PY\n", src, re.S).group(1)
+       body = "\n".join(l[10:] if l.startswith("          ") else l for l in body.split("\n"))
+       open('score.py', 'w', encoding='utf-8').write(body)
+       PY
+
+       # 2. run it against a copy of the board, never in the repo
+       mkdir -p /tmp/dt && cp scores.json score.py /tmp/dt/ && cd /tmp/dt
+       BODY=$'**Name:** Test\n**Mode:** strict\n**Score:** 9999'
+       env -u GITHUB_OUTPUT ALLOWED_MODES="strict,original" MAX_SCORE=1000000 TOP_N=100 \
+         ALLOWED_AUTHORS="exsolam" ISSUE_TITLE='[SCORE] strict - 9999 - test-1' \
+         ISSUE_BODY="$BODY" ISSUE_AUTHOR=exsolam ISSUE_NUMBER=90 python3 score.py
+
+   Worth covering all four paths, because they behave differently: a new score
+   (`result=accepted`, plus a rank), a repeated submission id (`result=duplicate`), an
+   unknown mode (`result=rejected`, with a reason), and a foreign author
+   (`result=ignored`, which is also the one that leaves the issue open with no comment).
+   Do this on a copy, never in the repo.
+
+## Known gaps
+
+- No licence file. The word lists and par values are from The Typing of the Dead, and the art is embedded. Worth resolving before anything is reused.
+- No tests. The logic is DOM free and testable, so this is an opening rather than a constraint.
+- No CI on pull requests, so nothing checks a PR automatically.
+- `beginDoors()` never runs. The two-door branch after stage 1 (`beginDoors`, `updateDoors`, `BRANCH`, `segName`) has no call site, so the Sewers and Ossuary branch is dead code and the README does not document it. Either wire it up or delete it.
+- The game file does not submit scores. There is no `fetch`, `XMLHttpRequest` or `sendBeacon` in it; submissions come from the Worker.
+
+## Conventions
+
+- **House style: no em dashes.** Direct and concise. NZ spelling.
+- Conventional commit messages: `docs:`, `fix:`, `feat:`, `ci:`, `chore:`.
+- The README is the public face of the repo and is written for a player first, then a contributor. Keep the two audiences separate.
+- Only `strict` and `original` are real modes. The game sends those two, and the workflow's `ALLOWED_MODES` matches; adding a mode means changing both.
