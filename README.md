@@ -12,7 +12,7 @@ Open `typing_dungeon_v21.html` in a browser. Either double-click the file, drag 
 python3 -m http.server 8000   # then open http://localhost:8000/typing_dungeon_v21.html
 ```
 
-Everything runs locally. The game makes no network requests and needs no server component.
+Opened as a file or from a static server, the game runs fully offline with no network requests. The hosted version at https://play.dtyper.workers.dev also saves scores to a database (see [Hosted game and scores](#hosted-game-preview-and-database)).
 
 - Keyboard required (it is a typing game). A wide window works best: the canvas is 960x540 and scales up to a 16:9 box.
 - Sound is generated with Web Audio. Browsers only allow audio after a user gesture, so the first key press starts the audio context. F2 mutes and unmutes.
@@ -112,7 +112,7 @@ Scores are submitted as GitHub issues and processed by a workflow into `scores.j
 4. An accepted score is appended, sorted by score (descending, then date, then id), trimmed to `TOP_N` per mode, and written to `scores.json` with an `updated` timestamp. The workflow commits that file itself.
 5. The issue is commented with the outcome (accepted plus rank, `not_top`, `duplicate`, or the rejection reason) and closed. Issues from other authors are ignored and left open, so nobody can bypass the sender by opening an issue by hand.
 
-The game file in this repo does not submit scores itself: there is no `fetch` or `XMLHttpRequest` in it. The `[SCORE]` issues are created by the leaderboard Worker, which lives outside this repo.
+This issue pipeline is the legacy path. The hosted game now submits scores straight to the Cloudflare Worker and D1 database in `server/` (see below). The `[SCORE]` issues are created by an older leaderboard Worker that lives outside this repo.
 
 Workflow settings, at the top of `.github/workflows/process-score.yml`:
 
@@ -148,13 +148,18 @@ Any `**Label:** value` line beyond name, mode, score and submission id is stored
 
 ```
 typing_dungeon_v21.html                the game, single file
-scores.json                            leaderboard data, written by the workflow
+scores.json                            legacy leaderboard data, written by the workflow
+server/                                hosted score API (Cloudflare Worker) and D1 migrations
+scripts/, tests/                       host staging, legacy import and verification
+HOSTING.md                             hosting, database setup and the playback loop
 .github/workflows/process-score.yml    turns [SCORE] issues into scores.json entries
+.github/workflows/check-game.yml       checks on every PR
+.github/workflows/host-game.yml        PR previews and production deploy on Cloudflare
 ```
 
 ## Working on the game
 
-- No build, no dependencies and no tests. The game logic is deliberately DOM free (`G`, `tierFor`, `pickFrom`, `key`, `kill`, `update`), so it can be driven headlessly; the browser glue is at the bottom of the file behind a `typeof window` check.
+- No build and no dependencies for the game itself. Checks live in `tests/` and `scripts/check-game.py` (see AGENTS.md for the commands). The game logic is deliberately DOM free (`G`, `tierFor`, `pickFrom`, `key`, `kill`, `update`), so it can be driven headlessly; the browser glue is at the bottom of the file behind a `typeof window` check.
 - Art is embedded as base64 data URIs (the zombie sprite sheet, the Axeman atlas and the three stage photos), which is why the file is about 2 MB. Editing art means replacing those strings.
 - Word lists and their par values are embedded in `WORDSET`, taken from the original game. They are not published anywhere else in the repo, so treat them as data for this game rather than something to extract.
 - Sound is synthesised at runtime (Web Audio), so there are no audio files.
