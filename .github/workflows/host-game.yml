@@ -73,15 +73,15 @@ jobs:
           GAME_URL: ${{ steps.publish.outputs.url }}
         run: |
           python3 - <<'PY'
-          import json,os,time,urllib.request
+          import json,os,time,subprocess
           for attempt in range(12):
               try:
-                  with urllib.request.urlopen(os.environ['GAME_URL']+'/api/health',timeout=10) as response:
-                      d=json.load(response)
+                  response=subprocess.check_output(['curl','--fail','--silent','--show-error','--max-time','10',os.environ['GAME_URL']+'/api/health'],text=True)
+                  d=json.loads(response)
                   assert d['revision']==os.environ['REVISION'],d
                   assert d['scope']==os.environ['SCORE_SCOPE'],d
                   break
-              except (OSError,ValueError,AssertionError) as error:
+              except (OSError,ValueError,AssertionError,subprocess.CalledProcessError) as error:
                   if attempt==11: raise
                   print('Waiting for deployed revision:',error,flush=True)
                   time.sleep(5)
