@@ -119,6 +119,44 @@ There is no test suite, no build and no CI on pull requests. The only workflow r
 - Use one writer per checkout. Check Git state before changing revisions and use an
   isolated worktree when another agent owns the checkout.
 
+### Watcher setup options
+
+Use one watcher per owned PR. Prefer the available scheduling tools for the quiet
+15-minute checks above. A webhook is optional when a reachable endpoint and explicit
+authorisation to post PR comments already exist.
+
+**1. Webhook route: instant, but needs a URL GitHub can reach.** GitHub POSTs PR events to
+a Hermes webhook route, which starts an agent run and can reply on the PR itself.
+
+```sh
+hermes webhook subscribe dungeon-typer-prs \
+  --events "pull_request,pull_request_review,pull_request_review_comment" \
+  --prompt "PR #{pull_request.number} {action}: {pull_request.title} by {pull_request.user.login}
+Branch {pull_request.head.ref} into {pull_request.base.ref}
+{pull_request.body}
+Read the diff, run what the testing section above requires, and report what is verified versus assumed." \
+  --deliver github_comment
+```
+
+Requires the webhook platform enabled (`hermes webhook list` says so if it is not) and a
+gateway URL that GitHub can reach, so a local machine needs a tunnel (cloudflared) or a
+public host. **Adding the webhook is a repository-owner step** (Settings -> Webhooks needs
+admin), so a collaborator cannot finish this route alone.
+
+**2. Cron poll: no exposure, works anywhere, and the sensible default here.** A scheduled
+job uses the PR list to discover head changes, then checks comments, reviews, checks,
+deployments and closure on each owned PR. Keep a checkpoint for all these signals
+outside the tracked repo so the same event is never reported twice.
+
+```sh
+gh pr list --repo ExsoLam/Dungeon-Typer- --state open \
+  --json number,title,headRefOid,updatedAt,author
+```
+
+Prefer this route unless a public endpoint already exists: it needs no admin action and no
+tunnel. Whichever route you use, **stay quiet when nothing has changed**. A watcher that
+comments on every poll is worse than no watcher.
+
 ## Conventions
 
 - **House style: no em dashes.** Direct and concise. NZ spelling.

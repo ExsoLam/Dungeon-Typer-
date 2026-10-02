@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Typing of the Dungeon - three-stage edition (strict / original mode)</title>
+<title>Typing of the Dungeon - three-stage edition (level select)</title>
 <style>
 :root{--bg:#e9e3d3;--bezel:#9a9484;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#111;--bezel:#333}}
@@ -17,6 +17,8 @@ body{background:var(--bg);display:flex;align-items:center;justify-content:center
 <body>
 <canvas id="cv" width="960" height="540" aria-label="game screen"></canvas>
 <script>
+
+
 
 
 
@@ -61,7 +63,12 @@ const POOLS = WORDSET.map(a => a.map(s => { const i = s.indexOf("|"); return { v
 const hooks = {}; function hook(n, a) { if (hooks[n]) hooks[n](a); }
 const recent = [];
 const MODES = { strict: { mult: 1.0 }, original: { mult: 0.75 } };   // original rules: case and spaces ignored, easier, so a lower score multiplier
-function bestKey() { return "tod_poc_best" + (G.mode === "original" ? "_orig" : ""); }
+/* difficulty: rate = spawn-rate multiplier (normal -25%, easy a further -33%), time = typing-time multiplier, bat = chance a zombie arrives with bats, mult = score multiplier */
+const DIFFS = { easy: { rate: 0.75 * 0.67, time: 1.25, bat: 0.05, mult: 0.6 }, normal: { rate: 0.75, time: 1.0, bat: 0.10, mult: 0.8 }, hard: { rate: 1.0, time: 1.0, bat: 0.16, mult: 1.0 } };
+const DIFF_ORDER = ["easy", "normal", "hard"];
+function bestKey() { return "tod_poc_best" + (G.mode === "original" ? "_orig" : "") + (G.diff === "hard" ? "" : "_" + G.diff) + (G.level >= 0 ? "_L" + G.level : ""); }
+function setLevel(l) { G.level = l >= 0 && l <= 2 ? l : -1; try { G.best = +localStorage.getItem(bestKey()) || 0; localStorage.setItem("tod_poc_level", String(G.level)); } catch (e) { G.best = 0; } }
+function setDiff(d) { G.diff = DIFFS[d] ? d : "hard"; try { G.best = +localStorage.getItem(bestKey()) || 0; localStorage.setItem("tod_poc_diff", G.diff); } catch (e) { G.best = 0; } }
 function setMode(m) { G.mode = m; CFG.CASE = m === "strict"; CFG.SPACES = m === "strict"; try { G.best = +localStorage.getItem(bestKey()) || 0; localStorage.setItem("tod_poc_mode", m); } catch (e) { G.best = 0; } }
 function first(w) { return CFG.CASE ? w[0] : w[0].toLowerCase(); }
 function eq(a, b) { return CFG.CASE ? a === b : a.toLowerCase() === b.toLowerCase(); }
@@ -121,7 +128,7 @@ function ST() { return STAGES[Math.min(G.seg, STAGES.length - 1)]; }
 function pickZone(w) { const t = STAGES[w].w, ks = Object.keys(t); let r = Math.random() * ks.reduce((a, k) => a + t[k], 0); for (const k of ks) { r -= t[k]; if (r <= 0) return k; } return ks[0]; }
 
 /* ---- game state (DOM-free so it can be tested headless) ---- */
-const G = { mode: "strict", state: "title", seg: 0, clock: 0, p: 3, acc: 0, calm: 0, lives: 3, continues: 5, cap: 0, enemies: [], queue: [], nextSpawn: 0,
+const G = { level: -1, diff: "hard", menu: 0, mode: "strict", state: "title", seg: 0, clock: 0, p: 3, acc: 0, calm: 0, lives: 3, continues: 5, cap: 0, enemies: [], queue: [], nextSpawn: 0,
   lock: null, msgs: [], st: null, results: [], flash: 0, best: 0, final: null, tier: 0, buf: null, branch: null, doors: null, daggers: [] };
 const clampP = v => Math.max(0, Math.min(15, v));
 function msg(s) { G.msgs.push(s); if (G.msgs.length > 2) G.msgs.shift(); }
@@ -130,7 +137,7 @@ function newStats() { return { words: 0, ranks: [0,0,0,0,0], rankPts: 0, base: 0
 
 function newGame() {
   G.lives = 3; G.continues = 5; G.p = 3; G.acc = 0; G.calm = 0; G.results = []; G.final = null; G.cap = 0; G.clock = 0; G.branch = null; G.doors = null;
-  startSegment(0);
+  startSegment(Math.max(0, G.level));   // level select: -1 = start at stage 1 and play all three, else just that stage
 }
 function startSegment(i) {
   if (typeof clearFx === "function") clearFx();
@@ -152,15 +159,15 @@ function spawn(type) {
   const taken = G.enemies.map(e => e.lane), lane = order.find(l => !taken.includes(l));
   if (lane === undefined) return false;
   const e = { type, word: obj.w, phases, value: obj.v, lane, zone: zid, born: G.clock, idx: 0, firstT: null, lastT: 0, keys: 0, wrong: 0 };
-  e.life = (ty.boss ? 9 : 4) + e.value / 30 * 3.0; e.hold = 0.7; e.t0 = G.clock; e.life += e.hold;   // stands still while it fades in
-  e.pi = piv; e.armor = !!ty.armor; e.stage = 0; e.axes = !!ty.hybrid; G.enemies.push(e); hook("spawn", e); if (!ty.boss && Math.random() < 0.16) spawnBats(); return true;
+  e.life = ((ty.boss ? 9 : 4) + e.value / 30 * 3.0) * DIFFS[G.diff].time; e.hold = 0.7; e.t0 = G.clock; e.life += e.hold;   // stands still while it fades in
+  e.pi = piv; e.armor = !!ty.armor; e.stage = 0; e.axes = !!ty.hybrid; G.enemies.push(e); hook("spawn", e); if (!ty.boss && Math.random() < DIFFS[G.diff].bat) spawnBats(); return true;
 }
 /* bats come in threes with a zombie; each is its own target with a low-tier word and flies in the air, not in a lane */
 function spawnBats() {
   for (let k = 0; k < 3; k++) {
     const pi = Math.floor(Math.random() * 2), obj = pickFrom(POOLS[pi], "B" + pi, G.enemies);
     const e = { type: "bat", word: obj.w, phases: null, value: obj.v, lane: -1, air: k, born: G.clock, idx: 0, firstT: null, lastT: 0, keys: 0, wrong: 0, pi };
-    e.life = 6 + e.value / 30 * 3.0; e.hold = 0.5; e.t0 = G.clock; e.life += e.hold; G.enemies.push(e); hook("spawn", e);
+    e.life = (6 + e.value / 30 * 3.0) * DIFFS[G.diff].time; e.hold = 0.5; e.t0 = G.clock; e.life += e.hold; G.enemies.push(e); hook("spawn", e);
   }
 }
 function loseLife() {
@@ -169,21 +176,21 @@ function loseLife() {
 }
 function kill(e) {
   const secs = e.firstT === null ? 0 : e.lastT - e.firstT, rk = rankOf(secs, e.value), R = RANKS[rk], s = G.st;
-  hook("kill", { e, rk }); s.words++; s.ranks[rk]++; s.rankPts += R.pts; s.base += 15; s.bonus += ((1 + 0.1 * G.p) * MODES[G.mode].mult - 1) * (R.pts + 15); s.chars += e.word.length - 1; s.secs += secs;
+  hook("kill", { e, rk }); s.words++; s.ranks[rk]++; s.rankPts += R.pts; s.base += 15; s.bonus += ((1 + 0.1 * G.p) * MODES[G.mode].mult * DIFFS[G.diff].mult - 1) * (R.pts + 15); s.chars += e.word.length - 1; s.secs += secs;
   G.acc += R.acc; if (G.acc >= 100) { G.acc = 0; bumpP(1); msg("Accumulator full: p+1"); }
   if (TYPES[e.type].citizen) { s.rescued++; msg("Prisoner rescued! +150"); }
   else msg(e.word.slice(0, 28) + " -> rank " + R.k + " +" + R.pts);
   if (TYPES[e.type].hybrid && e.stage < 2) {   // axes go first, then the armor, then it dies
     e.stage++; e.axes = false; e.stagger = e.stagDur = e.stage === 1 ? 0.95 : 1.0; e.trans = e.stage === 1 ? "lose" : "bust";
     const o = pickFrom(POOLS[e.pi], "P" + e.pi, G.enemies.filter(x => x !== e)); e.word = o.w; e.value = o.v; e.idx = 0; e.firstT = null;
-    e.life = (G.clock - e.born) + 4.5 + e.value / 30 * 3.0; G.lock = null; hook("hybrid", e); return;
+    e.life = (G.clock - e.born) + (4.5 + e.value / 30 * 3.0) * DIFFS[G.diff].time; G.lock = null; hook("hybrid", e); return;
   }
   if (e.armor && !e.broken) {   // armor bursts, the zombie staggers back, then a second target appears
     e.broken = true; e.stagger = e.stagDur = 1.0; e.trans = "bust"; const o = pickFrom(POOLS[e.pi], "P" + e.pi, G.enemies.filter(x => x !== e));
-    e.word = o.w; e.value = o.v; e.idx = 0; e.firstT = null; e.life = (G.clock - e.born) + 4.5 + e.value / 30 * 3.0; G.lock = null; hook("armor", e); return;
+    e.word = o.w; e.value = o.v; e.idx = 0; e.firstT = null; e.life = (G.clock - e.born) + (4.5 + e.value / 30 * 3.0) * DIFFS[G.diff].time; G.lock = null; hook("armor", e); return;
   }
   if (e.phases && e.phases.length) {
-    const o = e.phases.shift(); e.word = o.w; e.value = o.v; e.idx = 0; e.firstT = null; e.born = G.clock; e.hold = 0; e.life = 9 + e.value / 30 * 3.0;
+    const o = e.phases.shift(); e.word = o.w; e.value = o.v; e.idx = 0; e.firstT = null; e.born = G.clock; e.hold = 0; e.life = (9 + e.value / 30 * 3.0) * DIFFS[G.diff].time;
     G.lock = null; return;
   }
   G.enemies.splice(G.enemies.indexOf(e), 1); if (G.lock === e) G.lock = null;
@@ -192,7 +199,7 @@ function finishSegment() {
   const s = G.st, acc = s.keys ? 100 * (s.keys - s.wrong) / s.keys : 100;
   const accPts = Math.max(0, (Math.floor(acc) - 90) * 100), cit = s.rescued * 150;
   const wpm = s.secs > 0 ? (s.chars / 5) / (s.secs / 60) : 0;
-  G.results.push({ name: STAGES[G.seg].name, s, acc, accPts, cit, wpm, total: s.base + s.rankPts + accPts + cit + Math.round(s.bonus) });
+  G.results.push({ idx: G.seg, name: STAGES[G.seg].name, s, acc, accPts, cit, wpm, total: s.base + s.rankPts + accPts + cit + Math.round(s.bonus) });
   G.state = "results";
 }
 function update(dt) {
@@ -202,7 +209,7 @@ function update(dt) {
   G.calm += dt; if (G.calm >= 30) { G.calm = 0; bumpP(1); msg("30 s without damage: p+1"); }
   const sg = SEGS[G.seg];
   if (G.queue.length && G.clock >= G.nextSpawn && G.enemies.filter(x => !TYPES[x.type].bat).length < sg.max && spawn(G.queue[0])) {
-    G.queue.shift(); G.nextSpawn = G.clock + sg.gap;
+    G.queue.shift(); G.nextSpawn = G.clock + sg.gap / DIFFS[G.diff].rate;
   }
   for (const e of G.enemies.slice()) {
     if (e.stagger > 0) { e.stagger -= dt; e.born += dt; }
@@ -242,11 +249,18 @@ function doorKey(k) {
 }
 function key(k) {
   if (G.state === "doors") { doorKey(k); return; }
-  if (G.state === "title") { if (k === "Enter") newGame(); else if (k === "Tab" || k.indexOf("Arrow") === 0) setMode(G.mode === "strict" ? "original" : "strict"); return; }
+  if (G.state === "title") {
+    const flip = () => setMode(G.mode === "strict" ? "original" : "strict"), step = d => setDiff(DIFF_ORDER[(DIFF_ORDER.indexOf(G.diff) + d + 3) % 3]);
+    if (k === "Enter") newGame();
+    else if (k === "Tab") flip();
+    else if (k === "ArrowUp" || k === "ArrowDown") G.menu = (G.menu + (k === "ArrowDown" ? 1 : 2)) % 3;
+    else if (k === "ArrowLeft" || k === "ArrowRight") { const d = k === "ArrowRight" ? 1 : -1; if (G.menu === 1) step(d); else if (G.menu === 2) { const o = [-1, 0, 1, 2]; setLevel(o[(o.indexOf(G.level) + d + 4) % 4]); } else flip(); }
+    return;
+  }
   if (G.state === "over") { if (k === "Enter") { if (G.continues > 0) { G.continues--; bumpP(-4); bumpP(-1); G.lives = 3; G.enemies = []; G.lock = null; G.nextSpawn = G.clock + 1.5; G.calm = 0; G.daggers = []; G.state = "play"; msg("Continue! " + G.continues + " left, p-5"); } else G.state = "title"; } return; }
   if (G.state === "results") {
     if (k === "Enter") {
-      if (G.seg < SEGS.length - 1) startSegment(G.seg + 1);
+      if (G.level < 0 && G.seg < SEGS.length - 1) startSegment(G.seg + 1);
       else {
         const sum = G.results.reduce((a, r) => a + r.total, 0), bonus = G.lives * 100;
         G.final = { sum, bonus, total: sum + bonus };
@@ -588,41 +602,111 @@ const DRAW = { zombie: zomb("rat"), rat: zomb("rat"), skel: zomb("skel"), orc: z
 
 /* ---- procedural sound (Web Audio; F2 mutes): drone, wind, hits, growls, heartbeat when something is close ---- */
 const snd = (() => {
-  let ac = null, master = null, muted = false, nb = null, hb = 0;
+  let ac = null, master = null, muted = false, held = false, nb = null, hb = 0;
   const AC = () => (typeof window !== "undefined" ? (window.AudioContext || window.webkitAudioContext) : null);
   function noiseBuf() { if (!nb) { const n = ac.sampleRate; nb = ac.createBuffer(1, n, ac.sampleRate); const d = nb.getChannelData(0); for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1; } return nb; }
   function env(g, t, a, peak, dur) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); }
   function tone(f0, f1, dur, type, peak) { if (!ac) return; const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain(); o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur); env(g, t, 0.01, peak, dur); o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05); }
   function puff(dur, cutoff, peak) { if (!ac) return; const t = ac.currentTime, s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = noiseBuf(); f.type = "lowpass"; f.frequency.value = cutoff; env(g, t, 0.005, peak, dur); s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t + dur + 0.05); }
+  // armor break: clank with a cling. Two plate hits 35 ms apart (300 / 355 Hz bases). Per hit: six damped body modes (ratios 1..5.2,
+  // 45-60 ms) under seven bright ringing modes (ratios 7.1..20.5 = ~2.1-7.3 kHz, 90-200 ms), 15 ms noise strike at 4.5 kHz;
+  // normalized (/3.1) into a tanh(2x) shaper, out at 0.85 peak. ~-3.5 LUFS(100 ms) vs gunshot -7.7.
+  let shaper = null;
+  function clang(hits, lvl) {   // hits: [time offset s, base Hz, amp]; lvl: output level factor (1 = 0.85 peak)
+    if (!ac) return; const t = ac.currentTime, bus = ac.createGain(), out = ac.createGain();
+    if (!shaper) { const n = 1024, cv = new Float32Array(n); for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; cv[i] = Math.tanh(2 * x) / Math.tanh(2); } shaper = cv; }
+    const ws = ac.createWaveShaper(); ws.curve = shaper; ws.oversample = "4x";
+    bus.gain.value = 1 / 3.1; out.gain.value = 0.85 / 0.55 * lvl; bus.connect(ws); ws.connect(out); out.connect(master);
+    const R = [1, 1.59, 2.14, 2.65, 3.50, 5.20, 7.1, 8.6, 10.3, 12.4, 14.9, 17.2, 20.5],
+          A = [.6, .5, .45, .4, .35, .35, .5, .45, .4, .35, .3, .28, .25],
+          TAU = [.06, .055, .05, .045, .045, .05, .20, .18, .16, .14, .12, .10, .09];
+    hits.forEach(h => {
+      const t0 = t + h[0];
+      R.forEach((r, i) => {
+        const o = ac.createOscillator(), g = ac.createGain(); o.frequency.value = h[1] * r;
+        g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(h[2] * A[i], t0 + 0.001); g.gain.setTargetAtTime(0, t0 + 0.001, TAU[i]);
+        o.connect(g); g.connect(bus); o.start(t0); o.stop(t0 + 0.001 + TAU[i] * 7);
+      });
+      const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = noiseBuf(); f.type = "bandpass"; f.frequency.value = 4500; f.Q.value = 0.8;
+      g.gain.setValueAtTime(1.5 * h[2], t0); g.gain.setTargetAtTime(0, t0, 0.015); s.connect(f); f.connect(g); g.connect(bus); s.start(t0); s.stop(t0 + 0.15);
+    });
+  }
   return {
     start() {
       const C = AC(); if (ac || !C) return;
       try {
-        ac = new C(); master = ac.createGain(); master.gain.value = muted ? 0 : 0.55; master.connect(ac.destination);
+        ac = new C(); master = ac.createGain(); master.gain.value = muted ? 0 : 0.55; { const lim = ac.createDynamicsCompressor(); lim.threshold.value = -1; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.002; lim.release.value = 0.1; master.connect(lim); lim.connect(ac.destination); }
         [[55, "sine", 0.07], [82.4, "triangle", 0.035], [110.7, "sine", 0.02]].forEach(a => { const o = ac.createOscillator(), g = ac.createGain(); o.type = a[1]; o.frequency.value = a[0]; g.gain.value = a[2]; o.connect(g); g.connect(master); o.start(); });
         const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = noiseBuf(); s.loop = true; f.type = "lowpass"; f.frequency.value = 260; g.gain.value = 0.05; s.connect(f); f.connect(g); g.connect(master); s.start();
       } catch (e) { ac = null; }
     },
-    toggle() { muted = !muted; if (master) master.gain.value = muted ? 0 : 0.55; return muted; },
-    hit() { tone(900, 500, 0.05, "square", 0.05); }, miss() { tone(140, 90, 0.09, "sawtooth", 0.07); },
-    kill() { tone(130, 45, 0.28, "sine", 0.35); puff(0.25, 900, 0.3); }, hurt() { tone(70, 30, 0.5, "sine", 0.6); puff(0.4, 600, 0.5); },
-    growl() { tone(90, 55, 0.55, "sawtooth", 0.09); }, bat() { puff(0.6, 3000, 0.07); tone(1800, 2600, 0.15, "sine", 0.02); }, door() { tone(95, 55, 0.9, "sawtooth", 0.1); puff(0.8, 500, 0.12); },
-    armor() { tone(1400, 700, 0.12, "square", 0.08); puff(0.2, 5000, 0.2); }, throw() { puff(0.35, 2500, 0.1); tone(700, 1500, 0.3, "triangle", 0.03); },
-    bow() { puff(0.09, 3400, 0.07); tone(420, 150, 0.13, "triangle", 0.05); },
-    tick(dt, danger) { if (!ac || !danger) { hb = 0; return; } hb -= dt; if (hb <= 0) { hb = 0.62; tone(58, 40, 0.14, "sine", 0.4); setTimeout(() => tone(52, 38, 0.16, "sine", 0.3), 170); } }
+    toggle() { muted = !muted; if (master) master.gain.value = muted || held ? 0 : 0.55; return muted; },
+    hold(h) { if (h === held) return; held = h; if (master) master.gain.value = muted || held ? 0 : 0.55; },
+    // event peaks scaled to match GUNSHOT.mp3 at volume 0.5 (max 100 ms K-weighted loudness), capped at 0.9 output peak each
+    hit() { tone(450, 250, 0.05, "square", 0.681); }, miss() { tone(140, 90, 0.09, "sawtooth", 2.42); },
+    kill() { tone(130, 45, 0.28, "sine", 1.35); puff(0.25, 900, 1.15); }, hurt() { tone(70, 30, 0.5, "sine", 1.58); puff(0.4, 600, 1.32); },
+    growl() { tone(90, 55, 0.55, "sawtooth", 1.66); }, bat() { puff(0.6, 3000, 1.8); tone(1800, 2600, 0.15, "sine", 0.515); }, door() { tone(95, 55, 0.9, "sawtooth", 1.44); puff(0.8, 500, 1.72); },
+    armor() { clang([[0, 300, 1.0], [0.035, 355, 0.7]], 1); },
+    plink() { clang([[0, 420 + Math.random() * 230, 1.0]], 0.316); }, throw() { puff(0.35, 2500, 2.54); tone(700, 1500, 0.3, "triangle", 0.761); },
+    tick(dt, danger) { if (!ac || !danger) { hb = 0; return; } hb -= dt; if (hb <= 0) { hb = 0.62; tone(58, 40, 0.14, "sine", 1.97); setTimeout(() => tone(52, 38, 0.16, "sine", 1.47), 170); } }
+  };
+})();
+/* ---- music: SOUNDS/<name>.mp3 next to this file; track derived from G.state/G.seg each frame ---- */
+const music = (() => {
+  const FILES = { s1: "STAGE 1", s2: "STAGE 2", s3: "STAGE 3", end: "STAGE END", fin: "FINAL RESULTS" };
+  const LOOP = { s1: true, s2: true, s3: true, end: true, fin: false };
+  const VOL = 0.6, DUCK = 0.4, FADE = 0.5;   // base volume, game-over volume factor, fade-out seconds
+  const els = {}, fading = []; let cur = null, armed = false, muted = false, heldByPause = false;
+  function el(id) {
+    if (!els[id]) { const a = new Audio("SOUNDS/" + encodeURIComponent(FILES[id]) + ".mp3"); a.loop = LOOP[id]; a.preload = "auto"; a.addEventListener("error", () => {}); els[id] = a; }
+    return els[id];
+  }
+  function want() {
+    switch (G.state) {
+      case "play": case "pause": case "over": case "doors": return "s" + (Math.min(G.seg | 0, 2) + 1);
+      case "results": return "end";
+      case "final": return "fin";
+      default: return null;
+    }
+  }
+  function play(a) { try { const p = a.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
+  function stopNow(a) { try { a.pause(); a.currentTime = 0; } catch (e) {} }
+  const SHOT_VOL = 0.5; let shotEl = null;
+  return {
+    arm() { armed = true; },
+    mute(m) { muted = m; for (const k in els) els[k].muted = m; if (shotEl) shotEl.muted = m; },
+    shot() {
+      if (!shotEl) { shotEl = new Audio("SOUNDS/GUNSHOT.mp3"); shotEl.preload = "auto"; shotEl.volume = SHOT_VOL; shotEl.addEventListener("error", () => {}); }
+      shotEl.muted = muted; try { shotEl.pause(); shotEl.currentTime = 0; } catch (e) {} play(shotEl);
+    },
+    sync(dt) {
+      if (!armed) return;
+      const w = want();
+      if (w !== cur) {
+        if (cur) { const o = els[cur]; if (!o.paused) fading.push({ a: o, v0: o.volume, t: 0 }); else stopNow(o); }
+        cur = w; heldByPause = false;
+        if (w) { const a = el(w); for (let i = fading.length - 1; i >= 0; i--) if (fading[i].a === a) fading.splice(i, 1); stopNow(a); a.muted = muted; a.volume = VOL; play(a); }
+      }
+      for (let i = fading.length - 1; i >= 0; i--) { const f = fading[i]; f.t += dt; if (f.t >= FADE) { stopNow(f.a); fading.splice(i, 1); } else f.a.volume = Math.max(0, f.v0 * (1 - f.t / FADE)); }
+      if (!cur) return;
+      const a = els[cur];
+      if (G.state === "pause") { if (!a.paused) { a.pause(); heldByPause = true; } }
+      else if (heldByPause) { heldByPause = false; play(a); }
+      a.volume = VOL * (G.state === "over" ? DUCK : 1);
+    }
   };
 })();
 /* ---- effects (driven by hooks from the game logic) ---- */
 let NOW = 0, shake = 0, redFlash = 0, BG = null;
-const parts = [], deaths = [], floats = [], lens = [], stains = [], drips = [], bats = [], chunks = [], arrows = []; let nextDrip = 1, nextBat = 7, bowT = -9;
-function clearFx() { [parts, deaths, floats, lens, stains, drips, bats, chunks, arrows].forEach(a => { a.length = 0; }); bowT = -9; }
+const parts = [], deaths = [], floats = [], lens = [], stains = [], drips = [], bats = [], chunks = []; let nextDrip = 1, nextBat = 7;
+function clearFx() { [parts, deaths, floats, lens, stains, drips, bats, chunks].forEach(a => { a.length = 0; }); }
 function burst(x, y, n, cols, sp, life) { for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, v = sp * (0.3 + Math.random()); parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - sp * 0.5, life: life * (0.6 + Math.random() * 0.6), age: 0, col: cols[i % cols.length], sz: 1.5 + Math.random() * 2 }); } }
 function pos(e) {
   const hold = e.hold || 0, u = Math.max(0, Math.min(0.999, (G.clock - e.born - hold) / (e.life - hold))), s = 1 / (1 + 6 * (1 - u));
   if (e.type === "bat") return { u, s, k: TK.bat, x: CX + ([-0.3, 0, 0.3][e.air] + 0.04 * Math.sin(NOW * 2.4 + e.air * 2)) * W * s, y: HOR + (FEET - HOR) * s - (60 + 25 * Math.sin(NOW * 3 + e.air)) * s };
   return stagePos(e, u);
 }
-hooks.hit = e => { const P = pos(e); e._f = 0.12; snd.hit(); const cy = P.y - 150 * P.s * P.k; burst(P.x, cy, 6, ["#9a1812", "#6a0e0a", "#c02a20"], 170, 0.4); if (!TYPES[e.type].citizen) shootArrow(P.x, cy); };
+hooks.hit = e => { const P = pos(e); e._f = 0.12; snd.hit(); burst(P.x, P.y - 150 * P.s * P.k, 6, ["#9a1812", "#6a0e0a", "#c02a20"], 170, 0.4); };
 hooks.miss = e => { e._m = 0.25; snd.miss(); };
 hooks.damage = () => { shake = 0.4; redFlash = 0.5; snd.hurt(); for (let i = 0; i < 8; i++) lens.push({ x: 120 + Math.random() * 720, y: 40 + Math.random() * 330, r: 18 + Math.random() * 40, t0: NOW }); };
 hooks.door = () => snd.door();
@@ -657,48 +741,6 @@ hooks.kill = o => {
   floats.push({ txt: RANKS[o.rk].k, x: P.x, y: P.y - 250 * P.s * P.k, t0: NOW, col: ["#8fb08a", "#8aa6bf", "#c9a24a", "#c07a3a", "#b04a3a"][o.rk] });
   snd.kill();
 };
-/* ---- the player's bow: an arrow leaves the bow for every correct key, purely visual (the hit resolves in the game logic) ---- */
-const BOW = { x: CX, y: HY - 10 };   // the bow rises from behind the HUD panel, limbs curving away from the shooter
-function shootArrow(tx, ty) {
-  const x0 = BOW.x - 56 + (Math.random() - 0.5) * 16, y0 = BOW.y - 37;
-  const d = Math.hypot(tx - x0, ty - y0);
-  arrows.push({ x0, y0, tx, ty, d, t0: NOW, dur: Math.max(0.05, Math.min(0.13, d / 2600)) });
-  bowT = NOW; snd.bow();
-}
-function drawArrows(c) {
-  for (let i = arrows.length - 1; i >= 0; i--) {
-    const a = arrows[i], p = (NOW - a.t0) / a.dur; if (p >= 1) { arrows.splice(i, 1); continue; }
-    const e = p, x = a.x0 + (a.tx - a.x0) * e, y = a.y0 + (a.ty - a.y0) * e, ang = Math.atan2(a.ty - a.y0, a.tx - a.x0);
-    c.save(); c.translate(x, y); c.rotate(ang); c.globalAlpha = 0.4 + 0.6 * (1 - p);
-    c.strokeStyle = "rgba(228,222,200,.3)"; c.lineWidth = 2; c.beginPath(); c.moveTo(-24, 0); c.lineTo(-Math.min(70, a.d * 0.09), 0); c.stroke();   // streak
-    c.strokeStyle = "#8a6a3a"; c.lineWidth = 2.4; c.beginPath(); c.moveTo(-22, 0); c.lineTo(12, 0); c.stroke();                                        // shaft
-    c.fillStyle = "#d8dde4"; c.beginPath(); c.moveTo(21, 0); c.lineTo(9, -4); c.lineTo(9, 4); c.closePath(); c.fill();                                  // head
-    c.fillStyle = "#b03028"; c.beginPath(); c.moveTo(-22, 0); c.lineTo(-31, -5); c.lineTo(-27, 0); c.lineTo(-31, 5); c.closePath(); c.fill();            // fletching
-    c.restore();
-  }
-}
-function drawBow(c) {
-  const t = Math.max(0, 1 - (NOW - bowT) / 0.22), kick = Math.sin(Math.min(1, t) * Math.PI) * 10;
-  c.save(); c.translate(BOW.x, BOW.y + kick); c.lineCap = "round";
-  const U = [-64, -108], G = [-96, -14], L = [-48, 34];        // upper tip, grip, lower tip (the lower limb leaves the frame)
-  const limb = () => { c.beginPath(); c.moveTo(U[0], U[1]); c.quadraticCurveTo(-134, -58, G[0], G[1]); c.quadraticCurveTo(-122, 8, L[0], L[1]); };
-  c.lineWidth = 14; c.strokeStyle = "rgba(6,4,2,.85)"; limb(); c.stroke();                       // dark edge so the limb reads against the stone
-  c.lineWidth = 10; c.strokeStyle = lg(c, -140, 0, -40, 0, [[0, "#2c1a0a"], [0.45, "#8a6438"], [1, "#4a2f14"]]); limb(); c.stroke();
-  c.lineWidth = 3.4; c.strokeStyle = "rgba(214,182,132,.34)"; limb(); c.stroke();                // highlight, so the limb has some round
-  c.lineWidth = 15; c.strokeStyle = "#1c1106"; c.beginPath(); c.moveTo(-104, -30); c.lineTo(-90, 2); c.stroke();   // grip
-  c.fillStyle = "rgba(20,15,10,.9)"; c.beginPath(); c.ellipse(-95, -14, 14, 19, 0.18, 0, 6.283); c.fill();          // the hand on the grip
-  const nock = [-56 - t * 16, -37];                            // straight at rest, snapping forward when loosed
-  c.lineWidth = 2; c.strokeStyle = "rgba(232,228,212,.82)";
-  c.beginPath(); c.moveTo(U[0], U[1]); c.lineTo(nock[0], nock[1]); c.lineTo(L[0], L[1]); c.stroke();
-  if (t > 0.04) {                                              // the arrow, still leaving the string
-    c.globalAlpha = Math.min(1, t * 3);
-    c.strokeStyle = "#8a6a3a"; c.lineWidth = 2.4; c.beginPath(); c.moveTo(nock[0], nock[1] + 4); c.lineTo(nock[0] + 16, nock[1] - 92); c.stroke();
-    c.fillStyle = "#d8dde4"; c.beginPath(); c.moveTo(nock[0] + 19, nock[1] - 104); c.lineTo(nock[0] + 11, nock[1] - 90); c.lineTo(nock[0] + 22, nock[1] - 86); c.closePath(); c.fill();
-    c.fillStyle = "#b03028"; c.beginPath(); c.moveTo(nock[0], nock[1] + 4); c.lineTo(nock[0] - 7, nock[1] + 13); c.lineTo(nock[0] + 1, nock[1] + 10); c.lineTo(nock[0] + 5, nock[1] + 16); c.closePath(); c.fill();
-    c.globalAlpha = 1;
-  }
-  c.restore();
-}
 function drawDaggers(c) {
   G.daggers.forEach(d => {
     const p = Math.min(1, d.t / d.dur), x0 = d.x0 === undefined ? CX : d.x0, y0 = d.y0 === undefined ? 250 : d.y0, x = x0 + (CX - x0) * p, y = y0 + (470 - y0) * Math.pow(p, 1.5), s = 0.25 + 1.5 * p;
@@ -719,7 +761,7 @@ function drawChunks(c, dt) {
     const k = chunks[i], age = NOW - k.t0; if (age > 2.1) { chunks.splice(i, 1); continue; }
     if (!k.rest) {
       k.vy += 1500 * dt; k.x += k.vx * dt; k.y += k.vy * dt; k.rot += k.vr * dt;
-      if (k.y >= k.floor) { k.y = k.floor; if (Math.abs(k.vy) < 90) { k.rest = true; k.vx = 0; k.vr = 0; } else { k.vy *= -0.3; k.vx *= 0.65; k.vr *= 0.55; if (!k.plate) burst(k.x, k.y, 3, ["#7a1410", "#4a0a08"], 90, 0.4); } }
+      if (k.y >= k.floor) { k.y = k.floor; if (k.plate && !k.landed) { k.landed = true; snd.plink(); } if (Math.abs(k.vy) < 90) { k.rest = true; k.vx = 0; k.vr = 0; } else { k.vy *= -0.3; k.vx *= 0.65; k.vr *= 0.55; if (!k.plate) burst(k.x, k.y, 3, ["#7a1410", "#4a0a08"], 90, 0.4); } }
       else if (!k.plate && Math.random() < 0.6) parts.push({ x: k.x, y: k.y, vx: (Math.random() - 0.5) * 40, vy: 20, life: 0.6, age: 0, col: "#8a1410", sz: 2 + Math.random() * 2 });
     }
     c.save(); c.globalAlpha = age > 1.1 ? Math.max(0, 1 - (age - 1.1) / 1.0) : 1; c.translate(k.x, k.y); c.rotate(k.rot);
@@ -813,9 +855,9 @@ function hud(c) {
   c.font = "bold 11px Georgia,serif"; c.textBaseline = "middle"; c.textAlign = "left"; c.fillStyle = "#b5ac92"; c.fillText("DIFFICULTY", 18, HY + 66);
   for (let i = 0; i < 15; i++) { c.fillStyle = i < G.p ? "hsl(" + (46 - i * 2.6) + ",46%," + (38 - i * 0.6) + "%)" : "#201f1c"; c.fillRect(138 + i * 11, HY + 59, 9, 14); }
   c.fillStyle = "#b5ac92"; c.fillText("ACCUMULATOR", 18, HY + 90); c.fillStyle = "#201f1c"; c.fillRect(138, HY + 84, 163, 10); c.fillStyle = "#7a8a96"; c.fillRect(138, HY + 84, 163 * G.acc / 100, 10);
-  c.fillStyle = "#b5ac92"; c.fillText("p " + G.p + "  x" + ((1 + 0.1 * G.p) * MODES[G.mode].mult).toFixed(2), 308, HY + 66); c.fillText("+" + G.acc, 308, HY + 90);
+  c.fillStyle = "#b5ac92"; c.fillText("p " + G.p + "  x" + ((1 + 0.1 * G.p) * MODES[G.mode].mult * DIFFS[G.diff].mult).toFixed(2), 308, HY + 66); c.fillText("+" + G.acc, 308, HY + 90);
   c.textAlign = "center"; c.fillStyle = "#b8985a"; c.font = "bold 17px Georgia,serif"; c.fillText("STAGE " + (G.seg + 1) + "/3  " + segName(G.seg), 600, HY + 24);
-  c.font = "12px Georgia,serif"; c.fillStyle = "#9fb2be"; c.fillText("word tier L" + String((G.tier || 1) * 10).padStart(3, "0") + (G.mode === "original" ? "   ORIGINAL RULES" : ""), 600, HY + 46);
+  c.font = "12px Georgia,serif"; c.fillStyle = "#9fb2be"; c.fillText("word tier L" + String((G.tier || 1) * 10).padStart(3, "0") + "   " + G.diff.toUpperCase() + (G.mode === "original" ? " / ORIGINAL" : ""), 600, HY + 46);
   c.fillStyle = "#e6dfca"; c.fillText(G.msgs[G.msgs.length - 1] || "", 600, HY + 70); c.fillStyle = "#8d8672"; c.fillText(G.msgs.length > 1 ? G.msgs[0] : "", 600, HY + 90);
   c.textAlign = "right"; c.font = "bold 24px Georgia,serif"; c.fillStyle = "#dcb457"; c.fillText(wpm + " WPM", W - 24, HY + 32);
   c.font = "14px Georgia,serif"; c.fillStyle = "#d2cab4"; c.fillText(acc + "% accuracy   " + s.words + " words", W - 24, HY + 62);
@@ -829,11 +871,18 @@ function screens(c) {
     dark(0.55); title(c, "TYPING OF THE DUNGEON", 120, 52, "#b8985a"); txt(c, "proof of concept  -  rules from The Typing of the Dead", W / 2, 168, 17, "#c9b98a");
     ["Type the word on a monster to kill it. The first letter picks your target.", (CFG.CASE ? "Case and spaces count." : "Case and spaces are ignored (original rules).") + " Keys with no target are ignored.", "Speed against each word's par time sets your rank, A to E.",
      "Good ranks fill the accumulator; each 100 raises p, and p raises the word tier.", "30 s unhurt: p+1.   A hit: p-2.   Esc pauses.   F2 mutes sound.", "Armored zombies need two words; Axemen need three, and a typo gets an axe thrown at you."].forEach((s, i) => txt(c, s, W / 2, 232 + i * 30, 19, "#e8e2d0"));
-    txt(c, "THE BONFIRE GATE  -  THE COURTYARD  -  THE CRYPT", W / 2, 402, 16, "#a8603a", "center", true);
-    { const st = G.mode === "strict"; txt(c, "MODE", 360, 430, 17, "#c9b98a", "right", true);
-      txt(c, st ? "[ STRICT ]" : "STRICT", 385, 430, st ? 21 : 17, st ? "#ffd27a" : "#8a806a", "left", true); txt(c, !st ? "[ ORIGINAL ]" : "ORIGINAL", 535, 430, !st ? 21 : 17, !st ? "#ffd27a" : "#8a806a", "left", true);
-      txt(c, st ? "case and spaces count   -   score x1.0" : "case and spaces ignored, as in the original   -   score x0.75", W / 2, 454, 14, "#c9b98a"); txt(c, "TAB or arrow keys to change", W / 2, 472, 13, "#b0a58a"); }
-    if (G.best) txt(c, "best score " + G.best, W / 2, 490, 16, "#dcb457"); txt(c, "press ENTER to defend the keep", W / 2, 516, 22, "#fff", "center", true);
+        { const st = G.mode === "strict", M = G.menu, cur = (i, x, y) => { if (M === i) txt(c, ">", x, y, 24, "#ffd27a", "right", true); }, opt = (on, label, x, y) => txt(c, on ? "[ " + label + " ]" : label, x, y, on ? 21 : 17, on ? "#ffd27a" : "#8a806a", "left", true);
+      cur(0, 262, 404); txt(c, "MODE", 345, 404, 17, "#c9b98a", "right", true); opt(st, "STRICT", 370, 404); opt(!st, "ORIGINAL", 520, 404);
+      txt(c, st ? "case and spaces count" : "case and spaces ignored", 690, 404, 13, "#c9b98a", "left");
+      cur(1, 212, 430); txt(c, "DIFFICULTY", 345, 430, 17, "#c9b98a", "right", true);
+      [["easy", "EASY", 370], ["normal", "NORMAL", 485], ["hard", "HARD", 640]].forEach(d => opt(G.diff === d[0], d[1], d[2], 430));
+      txt(c, "score x" + ((st ? 1 : MODES.original.mult) * DIFFS[G.diff].mult).toFixed(2), 780, 430, 13, "#c9b98a", "left");
+      cur(2, 262, 456); txt(c, "LEVEL", 345, 456, 17, "#c9b98a", "right", true);
+      [[-1, "ALL", 370], [0, "1 GATE", 440], [1, "2 COURTYARD", 580], [2, "3 CRYPT", 800]].forEach(d => opt(G.level === d[0], d[1], d[2], 456));
+      txt(c, { easy: "spawn rate -50%, fewer bats, +25% typing time", normal: "spawn rate -25%, fewer bats", hard: "full spawn rate" }[G.diff], W / 2, 484, 14, "#c9b98a");
+      txt(c, "UP / DOWN select   LEFT / RIGHT change   TAB mode", W / 2, 504, 12, "#9c9078");
+      if (G.best) txt(c, "best " + G.best, 930, 524, 13, "#dcb457", "right"); }
+    txt(c, "press ENTER to defend the keep", W / 2, 524, 22, "#fff", "center", true);
   } else if (G.state === "results") {
     dark(0.6); parch(c, 170, 36, 620, 468); const r = G.results[G.results.length - 1], s = r.s, ink = "#2b1d0e";
     txt(c, "STAGE RESULT", W / 2, 76, 32, "#7a1f12", "center", true); txt(c, r.name, W / 2, 108, 18, ink);
@@ -843,9 +892,9 @@ function screens(c) {
   } else if (G.state === "final") {
     dark(0.6); parch(c, 170, 56, 620, 428); const ink = "#2b1d0e";
     txt(c, "THE DEAD LIE STILL", W / 2, 100, 36, "#7a1f12", "center", true);
-    G.results.forEach((r, i) => { txt(c, "Stage " + (i + 1) + "  " + r.name, 220, 170 + i * 36, 21, ink, "left"); txt(c, r.total + " pts", 740, 170 + i * 36, 21, ink, "right"); });
+    G.results.forEach((r, i) => { txt(c, "Stage " + ((r.idx === undefined ? i : r.idx) + 1) + "  " + r.name, 220, 170 + i * 36, 21, ink, "left"); txt(c, r.total + " pts", 740, 170 + i * 36, 21, ink, "right"); });
     txt(c, "Life bonus (placeholder)", 220, 290, 20, ink, "left"); txt(c, G.final.bonus + " pts", 740, 290, 20, ink, "right");
-    txt(c, "FINAL SCORE  " + G.final.total, W / 2, 360, 40, "#7a1f12", "center", true); txt(c, "best " + G.best, W / 2, 410, 20, ink); txt(c, "ENTER for the title", W / 2, 448, 18, ink);
+    txt(c, "FINAL SCORE  " + G.final.total, W / 2, 360, 40, "#7a1f12", "center", true); txt(c, "best " + G.best + "     " + G.diff.toUpperCase() + (G.mode === "original" ? " / ORIGINAL RULES" : "") + (G.level >= 0 ? " / STAGE " + (G.level + 1) + " ONLY" : ""), W / 2, 410, 20, ink); txt(c, "ENTER for the title", W / 2, 448, 18, ink);
   } else if (G.state === "pause") { dark(0.5); title(c, "PAUSED", 250, 56, "#b8985a"); }
   else if (G.state === "over") { dark(0.55); title(c, G.continues > 0 ? "YOU FALL..." : "THE END", 220, 58, "#9a3a2c"); txt(c, G.continues > 0 ? "ENTER = continue   (" + G.continues + " left, p-5)" : "NO CONTINUES LEFT   -   ENTER for the title", W / 2, 290, 24, "#fff", "center", true); }
 }
@@ -854,7 +903,7 @@ function drawAmbient(c, dt, active) {
   for (let i = 0; i < 0; i++) { const x = ((i * 230 + NOW * (7 + i * 3)) % (W + 440)) - 220, y = HOR + 70 + i * 28, r = 170 + i * 25, g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, "rgba(190,190,200,.10)"); g.addColorStop(1, "rgba(190,190,200,0)"); c.fillStyle = g; c.fillRect(x - r, y - r, 2 * r, 2 * r); }
   if (active) {
     nextDrip -= dt; if (nextDrip <= 0) { nextDrip = 0.7 + Math.random() * 1.3; const y = HOR + 30 + Math.random() * 170; void y; }
-    nextBat -= dt; if (nextBat <= 0) { nextBat = 9 + Math.random() * 10; bats.push({ t0: NOW, dir: Math.random() < 0.5 ? -1 : 1, y: 70 + Math.random() * 110, dur: 2.2 + Math.random() }); snd.bat(); }
+    nextBat -= dt; if (nextBat <= 0) { nextBat = 9 + Math.random() * 10; bats.push({ t0: NOW, dir: Math.random() < 0.5 ? -1 : 1, y: 70 + Math.random() * 110, dur: 2.2 + Math.random() }); }
   }
   for (let i = drips.length - 1; i >= 0; i--) {
     const d = drips[i], a = NOW - d.t0; if (a > 1.1) { drips.splice(i, 1); continue; } const s = (d.y - HOR) / 230;
@@ -939,7 +988,6 @@ function render(c, now) {
     }
     drawChunks(c, dt);
     drawDaggers(c);
-    drawArrows(c);
     list.forEach(e => { if (e !== G.lock) plaque(c, e); }); if (G.lock && list.includes(G.lock)) plaque(c, G.lock);
   }
   motes.forEach(m => { m.y -= m.v * dt * 0.4; m.x += Math.sin(NOW * 0.7 + m.v) * dt * 6; if (m.y < 0) m.y = 400; c.globalAlpha = 0.16 + 0.1 * Math.sin(NOW + m.v); c.fillStyle = "#e8c890"; c.fillRect(m.x, m.y, m.r, m.r); });
@@ -960,7 +1008,7 @@ function render(c, now) {
     redFlash = Math.max(0, redFlash - dt);
     const nearU = G.enemies.reduce((m, e) => TYPES[e.type].citizen ? m : Math.max(m, pos(e).u), 0);
     if (nearU > 0.55) { const k = Math.min(1, (nearU - 0.55) / 0.4), g = c.createRadialGradient(CX, 250, 330 - 170 * k, CX, 250, 640); g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(1, "rgba(0,0,0," + 0.6 * k + ")"); c.fillStyle = g; c.fillRect(0, 0, W, HY); }
-    snd.tick(dt, nearU > 0.8); hud(c); drawBow(c); drawWave(c);
+    snd.tick(dt, nearU > 0.8); hud(c); drawWave(c);
   }
   c.globalCompositeOperation = "saturation"; c.fillStyle = "rgba(128,128,128,.30)"; c.fillRect(0, 0, W, H); c.globalCompositeOperation = "source-over";
   const vg = c.createRadialGradient(CX, 250, 260, CX, 250, 720); vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,.40)"); c.fillStyle = vg; c.fillRect(0, 0, W, H);
@@ -971,16 +1019,18 @@ function render(c, now) {
 /* ---- browser glue ---- */
 if (typeof window !== "undefined" && typeof document !== "undefined" && document.getElementById) {
   const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
-  try { setMode(localStorage.getItem("tod_poc_mode") === "original" ? "original" : "strict"); } catch (e) {}
+  try { setMode(localStorage.getItem("tod_poc_mode") === "original" ? "original" : "strict"); setDiff(localStorage.getItem("tod_poc_diff") || "hard"); setLevel(parseInt(localStorage.getItem("tod_poc_level"), 10)); } catch (e) {}
   addEventListener("keydown", e => {
-    if (e.key === "F2") { e.preventDefault(); snd.start(); snd.toggle(); return; }
-    snd.start();
+    if (e.key === "F2") { e.preventDefault(); snd.start(); music.arm(); music.mute(snd.toggle()); return; }
+    snd.start(); music.arm();
+    const shoot = !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey && ["Shift", "Control", "Alt", "AltGraph", "Meta", "CapsLock"].indexOf(e.key) < 0, wasPaused = G.state === "pause";
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key === " " || e.key === "Enter" || e.key === "Escape" || e.key === "Tab" || e.key.indexOf("Arrow") === 0) e.preventDefault();
-    key(e.key);
+    key(e.key); music.sync(0); snd.hold(G.state === "pause");
+    if (shoot && !wasPaused && G.state !== "pause") music.shot();
   });
   let last = performance.now();
-  (function frame(now) { update((now - last) / 1000); last = now; render(ctx, now / 1000); requestAnimationFrame(frame); })(last);
+  (function frame(now) { const fdt = (now - last) / 1000; update(fdt); music.sync(Math.min(fdt, 0.1)); snd.hold(G.state === "pause"); last = now; render(ctx, now / 1000); requestAnimationFrame(frame); })(last);
 }
 </script>
 </body>

@@ -30,6 +30,14 @@ Everything runs locally. The game makes no network requests and needs no server 
 
 Targeting: the first letter you type locks onto the monster whose word starts with that letter, and that target is drawn above the others until it dies. Keys with no valid target are ignored, as in the original game. While a word is locked, every key goes to that monster.
 
+## The bow
+
+Every correct key looses an arrow. It leaves the bow at the bottom of the view and flies to the monster you are typing at; a wrong key or a key with no target throws nothing, because nothing is being aimed at.
+
+The arrows are visual only. A hit still resolves the instant you type the last letter of a word, so ranks, timing and scores are unchanged by the bow, and leaderboard entries stay comparable with ones posted before it existed.
+
+Prisoners are not shot at: typing a prisoner's word frees them, so no arrow is loosed.
+
 ## Modes
 
 | Mode | Case | Spaces | Score multiplier |
@@ -150,6 +158,7 @@ scores.json                            leaderboard data, written by the workflow
 - Art is embedded as base64 data URIs (the zombie sprite sheet, the Axeman atlas and the three stage photos), which is why the file is about 2 MB. Editing art means replacing those strings.
 - Word lists and their par values are embedded in `WORDSET`, taken from the original game. They are not published anywhere else in the repo, so treat them as data for this game rather than something to extract.
 - Sound is synthesised at runtime (Web Audio), so there are no audio files.
+- The bow and its arrows live in the effects layer (`shootArrow`, `drawArrows`, `drawBow` and the `arrows` array), fired from `hooks.hit` and drawn during the render pass. Effects are driven by hooks so the game logic stays DOM free and testable; put new visuals there rather than in `G`.
 
 ## Provenance
 
