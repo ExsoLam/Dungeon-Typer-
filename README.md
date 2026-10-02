@@ -28,7 +28,7 @@ Opened as a file or from a static server, the game runs fully offline with no ne
 | Any letter, digit or space | Type the word on the targeted monster |
 | Enter | Open the weapon picker from the title, then start; advance the stage results; take a continue after dying; return to the title from the final screen |
 | Tab or arrow keys | Switch mode on the title screen and the leaderboard (strict / original) |
-| Left / Right, 1 to 4 | Weapon picker: choose a weapon (Enter to start, Esc back) |
+| Left / Right, 1 to 5 | Weapon picker: choose a weapon (Enter to start, Esc back) |
 | N | Hosted game, title screen: change your player name |
 | S | Hosted game, title or final screen: open the leaderboard |
 | R | Hosted game, final screen: retry a score that failed to save |
@@ -39,14 +39,15 @@ Targeting: the first letter you type locks onto the monster whose word starts wi
 
 ## Weapons
 
-Pressing Enter on the title opens the weapon picker. Use Left and Right (or 1 to 4) to choose and Enter to start; Esc goes back. Your choice is remembered in the browser.
+Pressing Enter on the title opens the weapon picker. Use Left and Right (or 1 to 5) to choose and Enter to start; Esc goes back. Your choice is remembered in the browser.
 
 | Weapon | Feel |
 | --- | --- |
 | Service pistol | The original. Short, loud, with a pixel muzzle flash |
-| Suppressed AR | Quiet thup, tiny flash, brass flying out, red dot and laser |
-| Ray gun | Pulsing emitter, glowing bolt and ring, a laser-zap sound |
+| Suppressed AR | Suppressor, rails, red dot and laser. Quiet thup, tiny flash, brass flying out |
+| Ray gun | Red and chrome retro blaster. Glowing teal core, a bolt and ring, a zap |
 | Double barrel | Two big flashes, a boom and rising smoke |
+| Crossbow | A bolt streaks away with a string twang |
 
 Every correct key fires the weapon, with recoil, a muzzle effect and a procedural gunshot. A wrong key or a key with no target fires nothing, and typing a prisoner's word frees them without a shot.
 
@@ -146,7 +147,7 @@ HOSTING.md                             hosting, database setup and the playback 
 - Art is embedded as base64 data URIs (the zombie sprite sheet, the Axeman atlas and the three stage photos), which is why the file is about 2 MB. Editing art means replacing those strings.
 - Word lists and their par values are embedded in `WORDSET`, taken from the original game. They are not published anywhere else in the repo, so treat them as data for this game rather than something to extract.
 - Sound is synthesised at runtime (Web Audio), so there are no audio files.
-- Weapons live in the effects layer: the list is `WEAPONS`, the pistol is the embedded sprite (`drawPistol`), and the others are modelled in code as 80x80 pixel sprites (`weaponSprite`, `WSTYLE`, `drawWeapon`), all fired from `hooks.hit` and drawn during the render pass. To add a weapon, add a `WEAPONS` entry, a sound, a sprite branch and a `WSTYLE` entry. Effects are driven by hooks so the game logic stays DOM free and testable; put new visuals there rather than in `G`.
+- Weapons live in the effects layer: the list is `WEAPONS` (engine side, so the picker is testable). The pistol is its original embedded sprite (`drawPistol`). The AR, ray gun, shotgun and crossbow are pixel art, cropped to the weapon and downscaled to 480px tall, embedded as `WIMG.*` lines (`ax` is the muzzle axis, `mz` the muzzle y, `dh` the drawn height), with per-weapon recoil and muzzle effects in `WSTYLE`. All are fired from `hooks.hit` and drawn during the render pass. To add a weapon, add a `WEAPONS` entry, a sound, a `WIMG` sprite and a `WSTYLE` entry.
 
 ## Provenance
 
