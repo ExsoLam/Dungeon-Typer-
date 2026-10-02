@@ -6,17 +6,20 @@ The whole game is one file, `typing_dungeon_v21.html`: engine, renderer, procedu
 
 ## Play it
 
-Open `typing_dungeon_v21.html` in a browser. Either double-click the file, drag it into a browser window, or serve the folder with anything static:
+**Online:** https://play.dtyper.workers.dev. Choose a name under **Scores** and your runs are saved to a leaderboard for each mode.
+
+**Offline:** open `typing_dungeon_v21.html` in a browser. Either double-click the file, drag it into a browser window, or serve the folder with anything static:
 
 ```sh
 python3 -m http.server 8000   # then open http://localhost:8000/typing_dungeon_v21.html
 ```
 
-Opened as a file or from a static server, the game runs fully offline with no network requests. The hosted version at https://play.dtyper.workers.dev also saves scores to a database (see [Hosted game and scores](#hosted-game-preview-and-database)).
+Opened as a file or from a static server, the game runs fully offline with no network requests. The hosted version at https://play.dtyper.workers.dev also saves scores to a database (see [Leaderboard](#leaderboard)).
 
 - Keyboard required (it is a typing game). A wide window works best: the canvas is 960x540 and scales up to a 16:9 box.
 - Sound is generated with Web Audio. Browsers only allow audio after a user gesture, so the first key press starts the audio context. F2 mutes and unmutes.
-- Best score and the chosen mode are kept in `localStorage`, so they survive a reload.
+- Best score and the chosen mode are kept in `localStorage`, so they survive a reload. Hosted play also keeps your player identity there; clearing browser storage loses it.
+- Each correct key fires your pistol (see [The pistol](#the-pistol)).
 
 ## Controls
 
@@ -30,13 +33,11 @@ Opened as a file or from a static server, the game runs fully offline with no ne
 
 Targeting: the first letter you type locks onto the monster whose word starts with that letter, and that target is drawn above the others until it dies. Keys with no valid target are ignored, as in the original game. While a word is locked, every key goes to that monster.
 
-## The bow
+## The pistol
 
-Every correct key looses an arrow. It leaves the bow at the bottom of the view and flies to the monster you are typing at; a wrong key or a key with no target throws nothing, because nothing is being aimed at.
+A retro pistol sits at the bottom of the view. Every correct key fires it, with recoil, a muzzle flash and a procedural gunshot. A wrong key or a key with no target fires nothing, and typing a prisoner's word frees them without a shot.
 
-The arrows are visual only. A hit still resolves the instant you type the last letter of a word, so ranks, timing and scores are unchanged by the bow, and leaderboard entries stay comparable with ones posted before it existed.
-
-Prisoners are not shot at: typing a prisoner's word frees them, so no arrow is loosed.
+The pistol is visual only. A hit still resolves the instant you type the last letter of a word, so ranks, timing and scores are unchanged by it, and leaderboard entries stay comparable with earlier ones.
 
 ## Modes
 
@@ -104,6 +105,19 @@ Final score is the three stage scores plus 100 per life remaining (the results s
 
 ## Leaderboard
 
+The hosted game saves scores to a Cloudflare D1 database through a Worker (`server/worker.mjs`).
+
+- Open **Scores** on the title or final screen to set a player name and view the board.
+- Each mode has its own all-time board, showing each player's best run. Tied scores share a rank, and the top 100 are shown.
+- Identity is a random token kept in your browser, so there is no login and no cross-device recovery. Names can be changed and need not be unique.
+- A failed save is queued in the browser and can be retried, including after a reload. Resubmitting the same run never creates a duplicate.
+- Scores are reported by the client, so this is a casual leaderboard rather than a cheat-proof one.
+- Offline file play still works and shows an offline message in the Scores panel.
+
+Production is `https://play.dtyper.workers.dev`. Every code PR gets its own preview at `https://pr-N.dtyper.workers.dev` with a separate database, so test scores never reach the production board. Setup, deployment and the testing loop are in [HOSTING.md](HOSTING.md). The two scores on the old issue board were not imported, so the hosted boards started empty.
+
+### Legacy issue pipeline
+
 Scores are submitted as GitHub issues and processed by a workflow into `scores.json`.
 
 1. A `[SCORE]` issue is opened, titled `[SCORE] <mode> - <score> - <submission id>`, with the same values repeated in the body as `**Label:** value` lines (`**Name:**`, `**Mode:**`, `**Score:**`, `**Submission ID:**`, plus anything else the sender adds).
@@ -112,7 +126,7 @@ Scores are submitted as GitHub issues and processed by a workflow into `scores.j
 4. An accepted score is appended, sorted by score (descending, then date, then id), trimmed to `TOP_N` per mode, and written to `scores.json` with an `updated` timestamp. The workflow commits that file itself.
 5. The issue is commented with the outcome (accepted plus rank, `not_top`, `duplicate`, or the rejection reason) and closed. Issues from other authors are ignored and left open, so nobody can bypass the sender by opening an issue by hand.
 
-This issue pipeline is the legacy path. The hosted game now submits scores straight to the Cloudflare Worker and D1 database in `server/` (see below). The `[SCORE]` issues are created by an older leaderboard Worker that lives outside this repo.
+This is the older path and is kept until it is formally retired. The hosted game no longer uses it: it submits straight to the Worker below. The `[SCORE]` issues were created by an older leaderboard Worker that lives outside this repo.
 
 Workflow settings, at the top of `.github/workflows/process-score.yml`:
 
@@ -163,19 +177,8 @@ HOSTING.md                             hosting, database setup and the playback 
 - Art is embedded as base64 data URIs (the zombie sprite sheet, the Axeman atlas and the three stage photos), which is why the file is about 2 MB. Editing art means replacing those strings.
 - Word lists and their par values are embedded in `WORDSET`, taken from the original game. They are not published anywhere else in the repo, so treat them as data for this game rather than something to extract.
 - Sound is synthesised at runtime (Web Audio), so there are no audio files.
-- The bow and its arrows live in the effects layer (`shootArrow`, `drawArrows`, `drawBow` and the `arrows` array), fired from `hooks.hit` and drawn during the render pass. Effects are driven by hooks so the game logic stays DOM free and testable; put new visuals there rather than in `G`.
+- The pistol lives in the effects layer (`shootPistol`, `drawPistol`, `PISTOL_VIEW`), fired from `hooks.hit` and drawn during the render pass. Effects are driven by hooks so the game logic stays DOM free and testable; put new visuals there rather than in `G`.
 
 ## Provenance
 
 There is no licence file in this repo. The word lists and par values come from The Typing of the Dead (SEGA), and the art is embedded in the HTML. Check before reusing either outside this project.
-## Hosted game preview and database
-
-The optional Cloudflare hosted version adds a player name, automatic score saving,
-personal bests and an all-time board per mode. Open **Scores** on the title or final
-screen. Your player identity stays in that browser. Failed saves can be retried.
-Local file play works offline.
-
-Each code PR gets its own live preview once Cloudflare is configured. Production
-updates from merged `main`. Preview scores stay separate from production.
-See [HOSTING.md](HOSTING.md) for setup, deployment and the playback testing loop.
-The legacy issue pipeline remains active until the new production path is verified.
