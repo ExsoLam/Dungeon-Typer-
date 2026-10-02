@@ -1,0 +1,248 @@
+name: Process Leaderboard Score
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: leaderboard-processing
+  cancel-in-progress: false
+
+jobs:
+  process-score:
+    if: startsWith(github.event.issue.title, '[SCORE]')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Process score
+        id: score
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          GITHUB_OUTPUT: ${{ github.output }}
+        run: |
+          python3 <<'PY'
+          import json
+          import os
+          import re
+          import sys
+          from pathlib import Path
+
+          title = os.environ.get("ISSUE_TITLE", "")
+          body = os.environ.get("ISSUE_BODY", "")
+
+          # ------------------------------------------------------------
+          # Parse issue title
+          # ------------------------------------------------------------
+
+          match = re.match(
+              r"^\[SCORE\] (.+?) - ([0-9]+) - ([0-9a-fA-F-]+)$",
+              title
+          )
+
+          if not match:
+              print("Invalid score issue title.")
+              sys.exit(1)
+
+          mode = match.group(1)
+          score = int(match.group(2))
+          submission_id = match.group(3)
+
+          allowed_modes = {"easy", "normal", "hard"}
+
+          if mode not in allowed_modes:
+              print(f"Invalid mode: {mode}")
+              sys.exit(1)
+
+          if score < 0 or score > 100000000:
+              print(f"Invalid score: {score}")
+              sys.exit(1)
+
+          # ------------------------------------------------------------
+          # Extract fields from issue body
+          # ------------------------------------------------------------
+
+          def extract(field):
+              pattern = rf"^\*\*{re.escape(field)}:\*\*\s*(.+)$"
+              match = re.search(pattern, body, re.MULTILINE)
+
+              if not match:
+                  return None
+
+              return match.group(1).strip()
+
+          name = extract("Name")
+          body_mode = extract("Mode")
+          body_score = extract("Score")
+          body_submission_id = extract("Submission ID")
+
+          if not name:
+              print("Missing name.")
+              sys.exit(1)
+
+          if len(name) > 20:
+              print("Name too long.")
+              sys.exit(1)
+
+          if any(ord(c) < 32 for c in name):
+              print("Invalid characters in name.")
+              sys.exit(1)
+
+          if body_mode != mode:
+              print("Mode mismatch.")
+              sys.exit(1)
+
+          try:
+              if int(body_score) != score:
+                  print("Score mismatch.")
+                  sys.exit(1)
+          except (TypeError, ValueError):
+              print("Invalid body score.")
+              sys.exit(1)
+
+          if body_submission_id != f"`{submission_id}`":
+              print("Submission ID mismatch.")
+              sys.exit(1)
+
+          # ------------------------------------------------------------
+          # Load leaderboard
+          # ------------------------------------------------------------
+
+          path = Path("scores.json")
+
+          if path.exists():
+              with path.open("r", encoding="utf-8") as f:
+                  data = json.load(f)
+          else:
+              data = {}
+
+          for m in allowed_modes:
+              if m not in data or not isinstance(data[m], list):
+                  data[m] = []
+
+          # ------------------------------------------------------------
+          # Reject duplicate submissions
+          # ------------------------------------------------------------
+
+          for existing_mode in allowed_modes:
+              for entry in data[existing_mode]:
+                  if entry.get("submission_id") == submission_id:
+                      print("Duplicate submission.")
+
+                      with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+                          output.write("result=duplicate\n")
+                          output.write("rank=\n")
+
+                      sys.exit(0)
+
+          # ------------------------------------------------------------
+          # Add score
+          # ------------------------------------------------------------
+
+          entry = {
+              "name": name,
+              "score": score,
+              "submission_id": submission_id
+          }
+
+          data[mode].append(entry)
+
+          # Highest score first.
+          data[mode].sort(
+              key=lambda x: x.get("score", 0),
+              reverse=True
+          )
+
+          # Keep only top 100.
+          data[mode] = data[mode][:100]
+
+          # Determine rank.
+          rank = next(
+              (
+                  i + 1
+                  for i, x in enumerate(data[mode])
+                  if x.get("submission_id") == submission_id
+              ),
+              None
+          )
+
+          if rank is None:
+              result = "not_top_100"
+              rank_output = ""
+              print("Score did not make top 100.")
+          else:
+              result = "accepted"
+              rank_output = str(rank)
+              print(f"Score accepted at rank #{rank}.")
+
+          # ------------------------------------------------------------
+          # Write leaderboard
+          # ------------------------------------------------------------
+
+          with path.open("w", encoding="utf-8") as f:
+              json.dump(
+                  data,
+                  f,
+                  indent=2,
+                  ensure_ascii=False
+              )
+              f.write("\n")
+
+          # ------------------------------------------------------------
+          # Export outputs for later steps
+          # ------------------------------------------------------------
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"result={result}\n")
+              output.write(f"rank={rank_output}\n")
+
+          PY
+
+      - name: Commit leaderboard
+        run: |
+          git config user.name "Dungeon Typer Leaderboard"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add scores.json
+
+          if git diff --cached --quiet; then
+            echo "No leaderboard changes."
+          else
+            git commit -m "Update leaderboard"
+            git push
+          fi
+
+      - name: Comment and close issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          RESULT="${{ steps.score.outputs.result }}"
+          RANK="${{ steps.score.outputs.rank }}"
+
+          if [ "$RESULT" = "accepted" ]; then
+            MESSAGE="Score accepted and added to the leaderboard.
+
+          Current rank: **#${RANK}**"
+
+          elif [ "$RESULT" = "not_top_100" ]; then
+            MESSAGE="Score received, but it did not make the top 100 for this mode."
+
+          elif [ "$RESULT" = "duplicate" ]; then
+            MESSAGE="This score submission was already processed."
+
+          else
+            MESSAGE="Score processing completed."
+          fi
+
+          gh issue comment "$ISSUE_NUMBER" --body "$MESSAGE"
+          gh issue close "$ISSUE_NUMBER"
