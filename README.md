@@ -6,7 +6,7 @@ The whole game is one file, `typing_dungeon_v21.html`: engine, renderer, procedu
 
 ## Play it
 
-**Online:** https://play.dtyper.workers.dev. Choose a name under **Scores** and your runs are saved to a leaderboard for each mode.
+**Online:** https://play.dtyper.workers.dev. Pick a name when the game opens and your runs are saved to a leaderboard for each mode.
 
 **Offline:** open `typing_dungeon_v21.html` in a browser. Either double-click the file, drag it into a browser window, or serve the folder with anything static:
 
@@ -27,7 +27,10 @@ Opened as a file or from a static server, the game runs fully offline with no ne
 | --- | --- |
 | Any letter, digit or space | Type the word on the targeted monster |
 | Enter | Start from the title; advance the stage results; take a continue after dying; return to the title from the final screen |
-| Tab or arrow keys | Switch mode on the title screen (strict / original) |
+| Tab or arrow keys | Switch mode on the title screen and the leaderboard (strict / original) |
+| N | Hosted game, title screen: change your player name |
+| S | Hosted game, title or final screen: open the leaderboard |
+| R | Hosted game, final screen: retry a score that failed to save |
 | Escape | Pause and unpause |
 | F2 | Mute / unmute |
 
@@ -107,12 +110,12 @@ Final score is the three stage scores plus 100 per life remaining (the results s
 
 The hosted game saves scores to a Cloudflare D1 database through a Worker (`server/worker.mjs`).
 
-- Open **Scores** on the title or final screen to set a player name and view the board.
+- The first time the hosted game opens it asks for a name on the title screen (Esc plays as a guest). Press **N** on the title to change it and **S** on the title or final screen to open the leaderboard, which is drawn in the game itself.
 - Each mode has its own all-time board, showing each player's best run. Tied scores share a rank, and the top 100 are shown.
 - Identity is a random token kept in your browser, so there is no login and no cross-device recovery. Names can be changed and need not be unique.
-- A failed save is queued in the browser and can be retried, including after a reload. Resubmitting the same run never creates a duplicate.
+- A failed save is queued in the browser and can be retried with R, including after a reload. Resubmitting the same run never creates a duplicate.
 - Scores are reported by the client, so this is a casual leaderboard rather than a cheat-proof one.
-- Offline file play still works and shows an offline message in the Scores panel.
+- Offline file play still works; the name and leaderboard screens simply do not appear.
 
 Production is `https://play.dtyper.workers.dev`. Every code PR gets its own preview at `https://pr-N.dtyper.workers.dev` with a separate database, so test scores never reach the production board. Setup, deployment and the testing loop are in [HOSTING.md](HOSTING.md). The earlier GitHub issue pipeline has been retired, and its two scores were not imported, so the hosted boards started empty.
 

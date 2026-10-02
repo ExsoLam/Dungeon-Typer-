@@ -14,23 +14,9 @@ body{background:var(--bg);display:flex;align-items:center;justify-content:center
 #cv{display:block;width:min(100vw,calc(100vh * 16 / 9));max-height:100vh;aspect-ratio:16/9;background:#000;border:3px solid var(--bezel);border-radius:6px;box-sizing:border-box}
 #cv:focus{outline:none}
 </style>
-<style>
-#scoresToggle{position:fixed;top:10px;right:12px;z-index:3;background:#29251d;color:#e9d8b0;border:1px solid #b8985a;padding:9px;cursor:pointer}
-#scoresPanel{position:fixed;z-index:4;right:12px;top:50px;width:min(330px,calc(100vw - 48px));max-height:75vh;overflow:auto;background:#211d17;color:#e9d8b0;border:1px solid #b8985a;padding:16px;font:15px Georgia,serif;box-shadow:0 6px 30px #000}
-#scoresPanel h2{margin-top:0;font-size:22px}#scoresPanel button,#scoresPanel input{font:inherit;padding:7px;margin:4px 0}#scoresPanel input{width:95%;box-sizing:border-box}#scoresPanel ol{padding-left:24px}#scoresPanel li{padding:4px}#scoresStatus{line-height:1.4}#scoresPanel[hidden]{display:none}
-</style>
 </head>
 <body>
 <canvas id="cv" width="960" height="540" tabindex="0" aria-label="game screen"></canvas>
-<button id="scoresToggle" type="button">Scores</button>
-<section id="scoresPanel" hidden aria-label="Player and leaderboard">
-<h2>Dungeon records</h2>
-<label for="playerName">Your player name</label><input id="playerName" maxlength="20" autocomplete="nickname">
-<button id="savePlayer" type="button">Save name</button> <button id="closeScores" type="button">Return to game</button>
-<p id="scoresStatus" role="status" aria-live="polite"></p><button id="retryScore" type="button" hidden>Retry saving score</button>
-<h3 id="boardHeading">All-time best</h3><p id="personalBest"></p><ol id="scoreRows"></ol>
-<p>Your identity stays in this browser. The same name can belong to different players.</p>
-</section>
 <script>
 
 
@@ -137,7 +123,8 @@ function pickZone(w) { const t = STAGES[w].w, ks = Object.keys(t); let r = Math.
 
 /* ---- game state (DOM-free so it can be tested headless) ---- */
 const G = { mode: "strict", state: "title", seg: 0, clock: 0, p: 3, acc: 0, calm: 0, lives: 3, continues: 5, cap: 0, enemies: [], queue: [], nextSpawn: 0,
-  lock: null, msgs: [], st: null, results: [], flash: 0, best: 0, final: null, tier: 0, buf: null, branch: null, doors: null, daggers: [] };
+  lock: null, msgs: [], st: null, results: [], flash: 0, best: 0, final: null, tier: 0, buf: null, branch: null, doors: null, daggers: [],
+  net: { hosted: false, name: "", draft: "", guest: false, busy: false, loading: false, err: "", status: "", retry: false, board: [], best: 0, boardMode: "" } };
 const clampP = v => Math.max(0, Math.min(15, v));
 function msg(s) { G.msgs.push(s); if (G.msgs.length > 2) G.msgs.shift(); }
 function bumpP(d) { G.p = clampP(G.p + d); }
@@ -255,9 +242,31 @@ function doorKey(k) {
     if (d.idx[i] >= d.words[i].w.length) { d.chosen = i; d.open = 0; msg(BRANCH[d.ids[i]].name + " it is..."); hook("door"); }
   } else G.st.wrong++;
 }
+function openScores(from) { G.back = from; G.state = "scores"; hook("loadBoard"); }
+function nameKey(k) {
+  const N = G.net;
+  if (N.busy) return;
+  if (k === "Enter") { const n = N.draft.trim(); if (n) { N.err = ""; hook("saveName", n); } else N.err = "Type a name first."; }
+  else if (k === "Escape") { N.guest = !N.name; G.state = "title"; }
+  else if (k === "Backspace") N.draft = N.draft.slice(0, -1);
+  else if (k.length === 1 && /[A-Za-z0-9 _.\-]/.test(k) && N.draft.length < 20) N.draft += k;
+}
 function key(k) {
   if (G.state === "doors") { doorKey(k); return; }
-  if (G.state === "title") { if (k === "Enter") newGame(); else if (k === "Tab" || k.indexOf("Arrow") === 0) setMode(G.mode === "strict" ? "original" : "strict"); return; }
+  if (G.state === "title") {
+    const N = G.net;
+    if (k === "Enter") { if (N.hosted && !N.name && !N.guest) { N.draft = ""; N.err = ""; G.state = "name"; } else newGame(); }
+    else if (k === "Tab" || k.indexOf("Arrow") === 0) setMode(G.mode === "strict" ? "original" : "strict");
+    else if (N.hosted && (k === "s" || k === "S")) openScores("title");
+    else if (N.hosted && (k === "n" || k === "N")) { N.draft = N.name; N.err = ""; G.state = "name"; }
+    return;
+  }
+  if (G.state === "name") { nameKey(k); return; }
+  if (G.state === "scores") {
+    if (k === "Tab" || k.indexOf("Arrow") === 0) setMode(G.mode === "strict" ? "original" : "strict");
+    else if (k === "Escape" || k === "Enter") G.state = G.back || "title";
+    return;
+  }
   if (G.state === "over") { if (k === "Enter") { if (G.continues > 0) { G.continues--; bumpP(-4); bumpP(-1); G.lives = 3; G.enemies = []; G.lock = null; G.nextSpawn = G.clock + 1.5; G.calm = 0; G.daggers = []; G.state = "play"; msg("Continue! " + G.continues + " left, p-5"); } else G.state = "title"; } return; }
   if (G.state === "results") {
     if (k === "Enter") {
@@ -271,7 +280,12 @@ function key(k) {
     }
     return;
   }
-  if (G.state === "final") { if (k === "Enter") { G.state = "title"; } return; }
+  if (G.state === "final") {
+    if (k === "Enter") G.state = "title";
+    else if (G.net.hosted && (k === "s" || k === "S")) openScores("final");
+    else if (G.net.retry && (k === "r" || k === "R")) hook("retry");
+    return;
+  }
   if (k === "Escape") { G.state = G.state === "pause" ? "play" : "pause"; return; }
   if (G.state !== "play" || k.length !== 1) return;
   if (!CFG.SPACES && k === " ") return;   // original rules: spaces are skipped automatically, a typed space is ignored
@@ -842,6 +856,7 @@ function screens(c) {
       txt(c, st ? "[ STRICT ]" : "STRICT", 385, 430, st ? 21 : 17, st ? "#ffd27a" : "#8a806a", "left", true); txt(c, !st ? "[ ORIGINAL ]" : "ORIGINAL", 535, 430, !st ? 21 : 17, !st ? "#ffd27a" : "#8a806a", "left", true);
       txt(c, st ? "case and spaces count   -   score x1.0" : "case and spaces ignored, as in the original   -   score x0.75", W / 2, 454, 14, "#c9b98a"); txt(c, "TAB or arrow keys to change", W / 2, 472, 13, "#b0a58a"); }
     if (G.best) txt(c, "best score " + G.best, W / 2, 490, 16, "#dcb457"); txt(c, "press ENTER to defend the keep", W / 2, 516, 22, "#fff", "center", true);
+    if (G.net.hosted) txt(c, G.net.name ? "PLAYER  " + G.net.name + "      N  change name      S  scores" : G.net.guest ? "playing as guest, scores are not saved      N  choose a name      S  scores" : "ENTER to choose your name", W - 24, 24, 15, "#dcb457", "right", true);
   } else if (G.state === "results") {
     dark(0.6); parch(c, 170, 36, 620, 468); const r = G.results[G.results.length - 1], s = r.s, ink = "#2b1d0e";
     txt(c, "STAGE RESULT", W / 2, 76, 32, "#7a1f12", "center", true); txt(c, r.name, W / 2, 108, 18, ink);
@@ -853,7 +868,29 @@ function screens(c) {
     txt(c, "THE DEAD LIE STILL", W / 2, 100, 36, "#7a1f12", "center", true);
     G.results.forEach((r, i) => { txt(c, "Stage " + (i + 1) + "  " + r.name, 220, 170 + i * 36, 21, ink, "left"); txt(c, r.total + " pts", 740, 170 + i * 36, 21, ink, "right"); });
     txt(c, "Life bonus (placeholder)", 220, 290, 20, ink, "left"); txt(c, G.final.bonus + " pts", 740, 290, 20, ink, "right");
-    txt(c, "FINAL SCORE  " + G.final.total, W / 2, 360, 40, "#7a1f12", "center", true); txt(c, "best " + G.best, W / 2, 410, 20, ink); txt(c, "ENTER for the title", W / 2, 448, 18, ink);
+    txt(c, "FINAL SCORE  " + G.final.total, W / 2, 360, 40, "#7a1f12", "center", true); txt(c, "best " + G.best, W / 2, 394, 20, ink);
+    if (G.net.hosted) txt(c, G.net.status, W / 2, 420, 17, G.net.retry ? "#8a1d12" : ink);
+    txt(c, "ENTER for the title" + (G.net.hosted ? "      S  leaderboard" : "") + (G.net.retry ? "      R  retry save" : ""), W / 2, 452, 18, ink);
+  } else if (G.state === "name") {
+    const N = G.net; dark(0.6); parch(c, 190, 120, 580, 300); const ink = "#2b1d0e";
+    txt(c, "WHO DARES ENTER?", W / 2, 168, 34, "#7a1f12", "center", true); txt(c, "Your name goes on the dungeon records.", W / 2, 206, 18, ink);
+    c.fillStyle = "rgba(43,29,14,.12)"; c.fillRect(260, 238, 440, 52); c.strokeStyle = "#4a2f14"; c.lineWidth = 2; c.strokeRect(260, 238, 440, 52);
+    txt(c, N.draft + (Math.floor(NOW * 2) % 2 ? "_" : ""), W / 2, 265, 30, ink, "center", true);
+    txt(c, N.busy ? "Writing it in the book..." : N.err || "Letters, numbers, spaces, _ . - (up to 20)", W / 2, 314, 16, N.err ? "#8a1d12" : ink);
+    txt(c, "ENTER to confirm      ESC to " + (N.name ? "cancel" : "play as a guest"), W / 2, 372, 18, ink);
+  } else if (G.state === "scores") {
+    const N = G.net, st = G.mode === "strict", ink = "#2b1d0e"; dark(0.6); parch(c, 150, 28, 660, 484);
+    txt(c, "DUNGEON RECORDS", W / 2, 66, 34, "#7a1f12", "center", true);
+    txt(c, st ? "[ STRICT ]" : "STRICT", 400, 104, st ? 21 : 17, st ? "#7a1f12" : "#5a4a2a", "right", true); txt(c, !st ? "[ ORIGINAL ]" : "ORIGINAL", 560, 104, !st ? 21 : 17, !st ? "#7a1f12" : "#5a4a2a", "left", true);
+    const ready = N.boardMode === G.mode && !N.loading;
+    if (!ready) txt(c, N.err || "Reading the records...", W / 2, 270, 20, ink);
+    else if (!N.board.length) txt(c, "No scores yet. Claim the first spot.", W / 2, 270, 20, ink);
+    else { let rank = 0; N.board.slice(0, 10).forEach((r, i) => {
+      if (i === 0 || r.score !== N.board[i - 1].score) rank = i + 1; const y = 146 + i * 31, me = N.name && r.name === N.name && r.score === N.best;
+      if (me) { c.fillStyle = "rgba(122,31,18,.18)"; c.fillRect(200, y - 14, 560, 28); }
+      txt(c, "#" + rank, 222, y, 21, ink, "left", true); txt(c, r.name, 290, y, 21, me ? "#7a1f12" : ink, "left", me); txt(c, String(r.score), 738, y, 21, ink, "right", true); }); }
+    txt(c, N.name ? "You: " + N.name + "   best " + N.best : "No name chosen. Press ESC, then N on the title.", W / 2, 466, 17, ink);
+    txt(c, "TAB switch mode      ESC back", W / 2, 492, 15, ink);
   } else if (G.state === "pause") { dark(0.5); title(c, "PAUSED", 250, 56, "#b8985a"); }
   else if (G.state === "over") { dark(0.55); title(c, G.continues > 0 ? "YOU FALL..." : "THE END", 220, 58, "#9a3a2c"); txt(c, G.continues > 0 ? "ENTER = continue   (" + G.continues + " left, p-5)" : "NO CONTINUES LEFT   -   ENTER for the title", W / 2, 290, 24, "#fff", "center", true); }
 }
@@ -980,74 +1017,63 @@ function render(c, now) {
 if (typeof window !== "undefined" && typeof document !== "undefined" && document.getElementById) {
   // Hosted services live in browser glue. Local file play stays fully offline.
   const hosted = location.protocol === "https:" || location.protocol === "http:";
-  const panel = document.getElementById("scoresPanel"), status = document.getElementById("scoresStatus");
-  const nameInput = document.getElementById("playerName"), retry = document.getElementById("retryScore");
+  const N = G.net; N.hosted = hosted;
   const storage = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); return true; } catch { return false; } } };
   const parseSaved = k => { try { return JSON.parse(storage.get(k)); } catch { return null; } };
   let player = parseSaved("dt_player"), pending = parseSaved("dt_pending_runs") || [], lastFinal = null, saving = false, boardMode = "", boardRequest = 0;
   if (!Array.isArray(pending)) pending = [];
-  nameInput.value = player?.name || "";
-  status.textContent = hosted ? (player?.token ? "Welcome back, " + player.name + ". Return to the game and press Enter." : "Choose a name to save scores. Press Enter in the game to play.") : "Offline play. Online scores are available on the hosted game.";
+  N.name = player?.name || "";
   async function api(path, body) {
     const response = await fetch(path, { method: body ? "POST" : "GET", headers: { "Content-Type": "application/json", ...(player?.token ? { Authorization: "Bearer " + player.token } : {}) }, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(10000) });
     const data = await response.json(); if (!response.ok) throw new Error(data.error || "Score service unavailable."); return data;
   }
   async function loadBoard() {
-    if (!hosted) return; const mode = G.mode, request = ++boardRequest;
-    try {
-      const data = await api("/api/leaderboard?mode=" + mode); if (request !== boardRequest) return;
-      document.getElementById("boardHeading").textContent = "All-time best: " + mode;
-      document.getElementById("personalBest").textContent = "Your best: " + data.best;
-      const rows = document.getElementById("scoreRows"); rows.replaceChildren();
-      for (const row of data.board) { const li = document.createElement("li"); li.textContent = row.name + " · " + row.score; rows.append(li); }
-      if (!data.board.length) { const li = document.createElement("li"); li.textContent = "No scores yet. Claim the first spot."; rows.append(li); }
-    } catch (e) { status.textContent = e.message; }
+    if (!hosted) return; const mode = G.mode, request = ++boardRequest; N.loading = true; N.err = "";
+    try { const data = await api("/api/leaderboard?mode=" + mode); if (request !== boardRequest) return; N.board = data.board; N.best = data.best; N.boardMode = mode; }
+    catch (e) { if (request === boardRequest) N.err = e.message; }
+    finally { if (request === boardRequest) N.loading = false; }
   }
   async function submitScore() {
     if (!hosted || !pending.length || saving) return;
-    if (!player?.token) { status.textContent = "Choose and save your name, then save this run."; retry.hidden = false; return; }
-    saving = true; retry.hidden = true; status.textContent = "Saving your run…";
+    if (!player?.token) { N.status = "Choose a name (N on the title) to save this run."; N.retry = false; return; }
+    saving = true; N.retry = false; N.status = "Saving your run...";
     try {
       const data = await api("/api/scores", pending[0]); pending.shift(); storage.set("dt_pending_runs", JSON.stringify(pending));
-      await loadBoard(); status.textContent = "Score saved. Your best: " + data.best + ". Rank: #" + data.rank + ".";
-    } catch (e) { status.textContent = e.message + " Your run is ready to retry."; retry.hidden = false; }
+      await loadBoard(); N.status = "Saved. Rank #" + data.rank + "   your best " + data.best;
+    } catch (e) { N.status = e.message + " Your run is kept."; N.retry = true; }
     finally { saving = false; }
-    if (pending.length && retry.hidden) await submitScore();
+    if (pending.length && !N.retry) await submitScore();
   }
-  document.getElementById("scoresToggle").onclick = () => { panel.hidden = !panel.hidden; if (!panel.hidden) loadBoard(); };
-  document.getElementById("closeScores").onclick = () => { panel.hidden = true; cv.focus(); };
-  panel.addEventListener("keydown", e => e.stopPropagation());
-  document.getElementById("savePlayer").onclick = async () => {
-    if (!hosted) return;
+  hooks.loadBoard = loadBoard; hooks.retry = submitScore;
+  hooks.saveName = async name => {
+    if (!hosted || N.busy) return; N.busy = true; N.err = "";
     try {
-      const data = await api("/api/player", { name: nameInput.value }); player = { name: data.name, token: data.token || player.token };
-      const stored = storage.set("dt_player", JSON.stringify(player)); nameInput.value = player.name;
-      status.textContent = stored ? "Player saved. Return to the game and press Enter." : "Player ready for this session. Browser storage is unavailable.";
-      await loadBoard(); if (pending.length) await submitScore();
-    } catch (e) { status.textContent = e.message; }
+      const data = await api("/api/player", { name }); player = { name: data.name, token: data.token || player?.token };
+      if (!storage.set("dt_player", JSON.stringify(player))) N.status = "Browser storage is unavailable, so your name lasts this session only.";
+      N.name = player.name; N.guest = false; G.state = "title"; await loadBoard(); if (pending.length) await submitScore();
+    } catch (e) { N.err = e.message; }
+    finally { N.busy = false; }
   };
-  retry.onclick = submitScore;
   function syncScores() {
-    document.getElementById("scoresToggle").hidden = G.state === "play" || G.state === "pause";
-    if (G.state === "play") panel.hidden = true;
     if (boardMode !== G.mode) { boardMode = G.mode; loadBoard(); }
     if (G.state === "final" && G.final !== lastFinal) {
-      lastFinal = G.final;
+      lastFinal = G.final; N.status = "";
       const keys = G.results.reduce((n, r) => n + r.s.keys, 0), wrong = G.results.reduce((n, r) => n + r.s.wrong, 0);
       const chars = G.results.reduce((n, r) => n + r.s.chars, 0), secs = G.results.reduce((n, r) => n + r.s.secs, 0);
       if (!hosted) return;
       pending.push({ id: crypto.randomUUID(), version: "v21-1", mode: G.mode, score: G.final.total, accuracy: keys ? 100 * (keys - wrong) / keys : 100, wpm: secs ? chars / 5 / (secs / 60) : 0 });
-      storage.set("dt_pending_runs", JSON.stringify(pending)); panel.hidden = false; submitScore();
+      storage.set("dt_pending_runs", JSON.stringify(pending)); submitScore();
     }
   }
-  if (hosted) { panel.hidden = false; if (pending.length) { retry.hidden = false; status.textContent = "A previous run is ready to save. Retry when ready."; } }
+  if (hosted && !player?.token) G.state = "name";
+  else if (hosted && pending.length) submitScore();
   const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
   try { setMode(localStorage.getItem("tod_poc_mode") === "original" ? "original" : "strict"); } catch (e) {}
   addEventListener("keydown", e => {
     if (e.key === "F2") { e.preventDefault(); snd.start(); snd.toggle(); return; }
     snd.start();
     if (e.ctrlKey || e.metaKey || e.altKey) return;
-    if (e.key === " " || e.key === "Enter" || e.key === "Escape" || e.key === "Tab" || e.key.indexOf("Arrow") === 0) e.preventDefault();
+    if (e.key === " " || e.key === "Enter" || e.key === "Escape" || e.key === "Tab" || e.key === "Backspace" || e.key.indexOf("Arrow") === 0) e.preventDefault();
     key(e.key);
   });
   let last = performance.now();
