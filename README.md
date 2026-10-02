@@ -163,3 +163,14 @@ scores.json                            leaderboard data, written by the workflow
 ## Provenance
 
 There is no licence file in this repo. The word lists and par values come from The Typing of the Dead (SEGA), and the art is embedded in the HTML. Check before reusing either outside this project.
+## Hosted game preview and database
+
+The optional Cloudflare hosted version adds a player name, automatic score saving,
+personal bests and an all-time board per mode. Open **Scores** on the title or final
+screen. Your player identity stays in that browser. Failed saves can be retried.
+Local file play works offline.
+
+Each code PR gets its own live preview once Cloudflare is configured. Production
+updates from merged `main`. Preview scores stay separate from production.
+See [HOSTING.md](HOSTING.md) for setup, deployment and the playback testing loop.
+The legacy issue pipeline remains active until the new production path is verified.

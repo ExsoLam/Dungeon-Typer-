@@ -13,9 +13,23 @@ html,body{height:100%;margin:0}
 body{background:var(--bg);display:flex;align-items:center;justify-content:center}
 #cv{display:block;width:min(100vw,calc(100vh * 16 / 9));max-height:100vh;aspect-ratio:16/9;background:#000;border:3px solid var(--bezel);border-radius:6px;box-sizing:border-box}
 </style>
+<style>
+#scoresToggle{position:fixed;top:10px;right:12px;z-index:3;background:#29251d;color:#e9d8b0;border:1px solid #b8985a;padding:9px;cursor:pointer}
+#scoresPanel{position:fixed;z-index:4;right:12px;top:50px;width:min(330px,calc(100vw - 48px));max-height:75vh;overflow:auto;background:#211d17;color:#e9d8b0;border:1px solid #b8985a;padding:16px;font:15px Georgia,serif;box-shadow:0 6px 30px #000}
+#scoresPanel h2{margin-top:0;font-size:22px}#scoresPanel button,#scoresPanel input{font:inherit;padding:7px;margin:4px 0}#scoresPanel input{width:95%;box-sizing:border-box}#scoresPanel ol{padding-left:24px}#scoresPanel li{padding:4px}#scoresStatus{line-height:1.4}#scoresPanel[hidden]{display:none}
+</style>
 </head>
 <body>
-<canvas id="cv" width="960" height="540" aria-label="game screen"></canvas>
+<canvas id="cv" width="960" height="540" tabindex="0" aria-label="game screen"></canvas>
+<button id="scoresToggle" type="button">Scores</button>
+<section id="scoresPanel" hidden aria-label="Player and leaderboard">
+<h2>Dungeon records</h2>
+<label for="playerName">Your player name</label><input id="playerName" maxlength="20" autocomplete="nickname">
+<button id="savePlayer" type="button">Save name</button> <button id="closeScores" type="button">Return to game</button>
+<p id="scoresStatus" role="status" aria-live="polite"></p><button id="retryScore" type="button" hidden>Retry saving score</button>
+<h3 id="boardHeading">All-time best</h3><p id="personalBest"></p><ol id="scoreRows"></ol>
+<p>Your identity stays in this browser. The same name can belong to different players.</p>
+</section>
 <script>
 
 
@@ -970,6 +984,69 @@ function render(c, now) {
 
 /* ---- browser glue ---- */
 if (typeof window !== "undefined" && typeof document !== "undefined" && document.getElementById) {
+  // Hosted services live in browser glue. Local file play stays fully offline.
+  const hosted = location.protocol === "https:" || location.protocol === "http:";
+  const panel = document.getElementById("scoresPanel"), status = document.getElementById("scoresStatus");
+  const nameInput = document.getElementById("playerName"), retry = document.getElementById("retryScore");
+  const storage = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); return true; } catch { return false; } } };
+  const parseSaved = k => { try { return JSON.parse(storage.get(k)); } catch { return null; } };
+  let player = parseSaved("dt_player"), pending = parseSaved("dt_pending_runs") || [], lastFinal = null, saving = false, boardMode = "", boardRequest = 0;
+  if (!Array.isArray(pending)) pending = [];
+  nameInput.value = player?.name || "";
+  status.textContent = hosted ? (player?.token ? "Welcome back, " + player.name + ". Return to the game and press Enter." : "Choose a name to save scores. Press Enter in the game to play.") : "Offline play. Online scores are available on the hosted game.";
+  async function api(path, body) {
+    const response = await fetch(path, { method: body ? "POST" : "GET", headers: { "Content-Type": "application/json", ...(player?.token ? { Authorization: "Bearer " + player.token } : {}) }, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(10000) });
+    const data = await response.json(); if (!response.ok) throw new Error(data.error || "Score service unavailable."); return data;
+  }
+  async function loadBoard() {
+    if (!hosted) return; const mode = G.mode, request = ++boardRequest;
+    try {
+      const data = await api("/api/leaderboard?mode=" + mode); if (request !== boardRequest) return;
+      document.getElementById("boardHeading").textContent = "All-time best: " + mode;
+      document.getElementById("personalBest").textContent = "Your best: " + data.best;
+      const rows = document.getElementById("scoreRows"); rows.replaceChildren();
+      for (const row of data.board) { const li = document.createElement("li"); li.textContent = row.name + " · " + row.score; rows.append(li); }
+      if (!data.board.length) { const li = document.createElement("li"); li.textContent = "No scores yet. Claim the first spot."; rows.append(li); }
+    } catch (e) { status.textContent = e.message; }
+  }
+  async function submitScore() {
+    if (!hosted || !pending.length || saving) return;
+    if (!player?.token) { status.textContent = "Choose and save your name, then save this run."; retry.hidden = false; return; }
+    saving = true; retry.hidden = true; status.textContent = "Saving your run…";
+    try {
+      const data = await api("/api/scores", pending[0]); pending.shift(); storage.set("dt_pending_runs", JSON.stringify(pending));
+      await loadBoard(); status.textContent = "Score saved. Your best: " + data.best + ". Rank: #" + data.rank + ".";
+    } catch (e) { status.textContent = e.message + " Your run is ready to retry."; retry.hidden = false; }
+    finally { saving = false; }
+    if (pending.length && retry.hidden) await submitScore();
+  }
+  document.getElementById("scoresToggle").onclick = () => { panel.hidden = !panel.hidden; if (!panel.hidden) loadBoard(); };
+  document.getElementById("closeScores").onclick = () => { panel.hidden = true; cv.focus(); };
+  panel.addEventListener("keydown", e => e.stopPropagation());
+  document.getElementById("savePlayer").onclick = async () => {
+    if (!hosted) return;
+    try {
+      const data = await api("/api/player", { name: nameInput.value }); player = { name: data.name, token: data.token || player.token };
+      const stored = storage.set("dt_player", JSON.stringify(player)); nameInput.value = player.name;
+      status.textContent = stored ? "Player saved. Return to the game and press Enter." : "Player ready for this session. Browser storage is unavailable.";
+      await loadBoard(); if (pending.length) await submitScore();
+    } catch (e) { status.textContent = e.message; }
+  };
+  retry.onclick = submitScore;
+  function syncScores() {
+    document.getElementById("scoresToggle").hidden = G.state === "play" || G.state === "pause";
+    if (G.state === "play") panel.hidden = true;
+    if (boardMode !== G.mode) { boardMode = G.mode; loadBoard(); }
+    if (G.state === "final" && G.final !== lastFinal) {
+      lastFinal = G.final;
+      const keys = G.results.reduce((n, r) => n + r.s.keys, 0), wrong = G.results.reduce((n, r) => n + r.s.wrong, 0);
+      const chars = G.results.reduce((n, r) => n + r.s.chars, 0), secs = G.results.reduce((n, r) => n + r.s.secs, 0);
+      if (!hosted) return;
+      pending.push({ id: crypto.randomUUID(), version: "v21-1", mode: G.mode, score: G.final.total, accuracy: keys ? 100 * (keys - wrong) / keys : 100, wpm: secs ? chars / 5 / (secs / 60) : 0 });
+      storage.set("dt_pending_runs", JSON.stringify(pending)); panel.hidden = false; submitScore();
+    }
+  }
+  if (hosted) { panel.hidden = false; if (pending.length) { retry.hidden = false; status.textContent = "A previous run is ready to save. Retry when ready."; } }
   const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
   try { setMode(localStorage.getItem("tod_poc_mode") === "original" ? "original" : "strict"); } catch (e) {}
   addEventListener("keydown", e => {
@@ -980,7 +1057,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined" && document
     key(e.key);
   });
   let last = performance.now();
-  (function frame(now) { update((now - last) / 1000); last = now; render(ctx, now / 1000); requestAnimationFrame(frame); })(last);
+  (function frame(now) { update((now - last) / 1000); last = now; render(ctx, now / 1000); syncScores(); requestAnimationFrame(frame); })(last);
 }
 </script>
 </body>

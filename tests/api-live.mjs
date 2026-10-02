@@ -1,0 +1,35 @@
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+const base = process.env.TEST_URL;
+if (!base || !/^http:\/\/(localhost|127\.0\.0\.1):[0-9]+$/.test(base)) throw new Error('TEST_URL must point at the local scratch Worker');
+async function call(path, body, token, origin=base) {
+  const r=await fetch(base+path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',Origin:origin,...(token?{Authorization:'Bearer '+token}:{})},body:body?JSON.stringify(body):undefined});
+  return {status:r.status,data:await r.json()};
+}
+const testName='API '+randomUUID().slice(0,8);
+const player=await call('/api/player',{name:testName});
+assert.equal(player.status,201);
+const token=player.data.token;
+const run={id:randomUUID(),mode:'strict',version:'v21-1',score:9876,accuracy:98,wpm:65};
+assert.equal((await call('/api/scores',run)).status,401);
+assert.equal((await call('/api/scores',run,token,'https://foreign.example')).status,403);
+assert.equal((await call('/api/scores',{...run,mode:'normal'},token)).status,400);
+const saved=await call('/api/scores',run,token);
+assert.equal(saved.status,200); assert.equal(saved.data.best,9876);
+assert.equal((await call('/api/scores',run,token)).status,200);
+assert.equal((await call('/api/scores',{...run,score:9999},token)).status,409);
+await call('/api/scores',{...run,id:randomUUID(),score:123},token);
+const board=await call('/api/leaderboard?mode=strict',null,token);
+assert.equal(board.data.best,9876);
+assert.equal(board.data.board.filter(r=>r.name===testName).length,1);
+assert.equal((await call('/api/leaderboard?mode=original',null,token)).data.best,0);
+const other=await call('/api/player',{name:'Other Tester'});
+assert.equal((await call('/api/leaderboard?mode=strict',null,other.data.token)).data.best,0);
+assert.equal((await call('/api/scores',run,other.data.token)).status,409);
+for(let i=0;i<3;i++) assert.equal((await call('/api/scores',{...run,id:randomUUID(),score:200+i},token)).status,200);
+assert.equal((await call('/api/scores',{...run,id:randomUUID()},token)).status,429);
+assert.equal((await call('/api/scores',run,token)).status,200);
+const raceRun={...run,id:randomUUID()};
+const race=await Promise.all([call('/api/scores',raceRun,other.data.token),call('/api/scores',{...raceRun,score:9998},other.data.token)]);
+assert.deepEqual(race.map(r=>r.status).sort(),[200,409]);
+console.log('Live local API: identity, validation, origin, duplicates, best, separate modes, ownership and rate limit passed');
