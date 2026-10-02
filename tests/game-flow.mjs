@@ -7,7 +7,7 @@ const engine = script.slice(0, script.indexOf('/* ---- canvas renderer:'));
 for (const mode of ['strict', 'original']) {
   const context = vm.createContext({ Math, console });
   vm.runInContext(engine + `
-    setMode('${mode}'); key('Enter');
+    setMode('${mode}'); key('Enter'); key('Enter');
     let ticks=0;
     while (G.state!=='final' && ticks++<30000) {
       if (G.state==='results' || G.state==='over') { key('Enter'); continue; }

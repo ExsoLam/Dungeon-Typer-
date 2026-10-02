@@ -123,7 +123,7 @@ function pickZone(w) { const t = STAGES[w].w, ks = Object.keys(t); let r = Math.
 
 /* ---- game state (DOM-free so it can be tested headless) ---- */
 const G = { mode: "strict", state: "title", seg: 0, clock: 0, p: 3, acc: 0, calm: 0, lives: 3, continues: 5, cap: 0, enemies: [], queue: [], nextSpawn: 0,
-  lock: null, msgs: [], st: null, results: [], flash: 0, best: 0, final: null, tier: 0, buf: null, branch: null, doors: null, daggers: [],
+  lock: null, msgs: [], st: null, results: [], flash: 0, best: 0, final: null, tier: 0, buf: null, branch: null, doors: null, daggers: [], weapon: "pistol",
   net: { hosted: false, name: "", draft: "", guest: false, busy: false, loading: false, err: "", status: "", retry: false, board: [], best: 0, boardMode: "" } };
 const clampP = v => Math.max(0, Math.min(15, v));
 function msg(s) { G.msgs.push(s); if (G.msgs.length > 2) G.msgs.shift(); }
@@ -242,6 +242,15 @@ function doorKey(k) {
     if (d.idx[i] >= d.words[i].w.length) { d.chosen = i; d.open = 0; msg(BRANCH[d.ids[i]].name + " it is..."); hook("door"); }
   } else G.st.wrong++;
 }
+/* ---- weapons: looks only. Scoring, timing and ranks never read G.weapon. ---- */
+const WEAPONS = [
+  { id: "pistol", name: "SERVICE PISTOL", note: "Reliable. Loud. Yours.", snd: "pistol" },
+  { id: "ar", name: "SUPPRESSED AR", note: "Whisper quiet. Fully kitted.", snd: "ar" },
+  { id: "ray", name: "RAY GUN", note: "Atomic. Slightly illegal.", snd: "ray" },
+  { id: "shotgun", name: "DOUBLE BARREL", note: "Subtle it is not.", snd: "boom" }
+];
+const weaponDef = () => WEAPONS.find(w => w.id === G.weapon) || WEAPONS[0];
+function setWeapon(i) { G.weapon = WEAPONS[(i + WEAPONS.length) % WEAPONS.length].id; hook("weapon", G.weapon); }
 function openScores(from) { G.back = from; G.state = "scores"; hook("loadBoard"); }
 function nameKey(k) {
   const N = G.net;
@@ -255,10 +264,19 @@ function key(k) {
   if (G.state === "doors") { doorKey(k); return; }
   if (G.state === "title") {
     const N = G.net;
-    if (k === "Enter") { if (N.hosted && !N.name && !N.guest) { N.draft = ""; N.err = ""; G.state = "name"; } else newGame(); }
+    if (k === "Enter") { if (N.hosted && !N.name && !N.guest) { N.draft = ""; N.err = ""; G.state = "name"; } else G.state = "weapon"; }
     else if (k === "Tab" || k.indexOf("Arrow") === 0) setMode(G.mode === "strict" ? "original" : "strict");
     else if (N.hosted && (k === "s" || k === "S")) openScores("title");
     else if (N.hosted && (k === "n" || k === "N")) { N.draft = N.name; N.err = ""; G.state = "name"; }
+    return;
+  }
+  if (G.state === "weapon") {
+    const i = WEAPONS.findIndex(w => w.id === G.weapon);
+    if (k === "ArrowLeft" || k === "ArrowUp") setWeapon(i - 1);
+    else if (k === "ArrowRight" || k === "ArrowDown" || k === "Tab") setWeapon(i + 1);
+    else if (k.length === 1 && k >= "1" && k <= String(WEAPONS.length)) setWeapon(+k - 1);
+    else if (k === "Enter") newGame();
+    else if (k === "Escape") G.state = "title";
     return;
   }
   if (G.state === "name") { nameKey(k); return; }
@@ -638,6 +656,9 @@ const snd = (() => {
     growl() { tone(90, 55, 0.55, "sawtooth", 0.09); }, bat() { puff(0.6, 3000, 0.07); tone(1800, 2600, 0.15, "sine", 0.02); }, door() { tone(95, 55, 0.9, "sawtooth", 0.1); puff(0.8, 500, 0.12); },
     armor() { tone(1400, 700, 0.12, "square", 0.08); puff(0.2, 5000, 0.2); }, throw() { puff(0.35, 2500, 0.1); tone(700, 1500, 0.3, "triangle", 0.03); },
     pistol() { puff(0.075, 2800, 0.22); tone(105, 38, 0.11, "triangle", 0.17); },
+    ar() { puff(0.03, 1400, 0.06); tone(170, 70, 0.045, "triangle", 0.07); tone(1100, 700, 0.02, "square", 0.015); },
+    ray() { tone(1500, 240, 0.2, "sawtooth", 0.06); tone(2300, 520, 0.14, "sine", 0.05); puff(0.05, 6000, 0.04); },
+    boom() { puff(0.24, 1700, 0.42); tone(85, 26, 0.3, "triangle", 0.34); },
     tick(dt, danger) { if (!ac || !danger) { hb = 0; return; } hb -= dt; if (hb <= 0) { hb = 0.62; tone(58, 40, 0.14, "sine", 0.4); setTimeout(() => tone(52, 38, 0.16, "sine", 0.3), 170); } }
   };
 })();
@@ -692,7 +713,99 @@ const PISTOL_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABOYAAATmCAYAAA
 const PISTOL_VIEW = { x: 170, y: 194, w: 952, h: 1006, sightX: 458 };
 const PISTOL_IMG = typeof Image === "undefined" ? null : new Image();
 if (PISTOL_IMG) PISTOL_IMG.src = PISTOL_SRC;
-function shootPistol() { pistolT = NOW; pistolShot++; snd.pistol(); }
+function shootPistol() { pistolT = NOW; pistolShot++; snd[weaponDef().snd](); }
+const FLASH_PIX = [
+  ".........r..........", ".........rr.........", "........roo.........", "........roy.........",
+  ".......royyr........", "..r....royyor.......", "..rr..royyyor.......", "..ror.roywyyr..r....",
+  "...roroywwyyr.rr....", "...royyywwyyrorr....", "...royywwwyyoyor....", "..royyywwwyyyorr....",
+  ".rroyyywwwyyyor.....", ".royyyywwwwyyorr....", "..royywwwwwyyyor....", "..royywwwwwyyorr....",
+  "...roywwwwwyyr......", "....roywwwyyyr......", ".....roywwyyr.......", "......rywyyr........",
+  ".......yyyrr........", "........yy.........."
+];
+function pixFlash(c, mx, my, size, flip) {
+  const colours = { r: "#bd321c", o: "#fa7326", y: "#ffc76b", w: "#fff4ce" }, pixel = 3;
+  c.save(); c.translate(mx, my); c.scale(flip * size, size);
+  FLASH_PIX.forEach((row, iy) => { for (let ix = 0; ix < row.length; ix++) {
+    const colour = colours[row[ix]]; if (!colour) continue;
+    c.fillStyle = colour; c.fillRect((ix - 9) * pixel, (iy - 20) * pixel, pixel, pixel);
+  } });
+  c.restore();
+}
+/* ---- weapon sprites: modelled in code at 80x80 (viewed from behind, muzzle at the top), then scaled up without smoothing to match the pistol ---- */
+const WSPR = {};
+function weaponSprite(id) {
+  if (id in WSPR) return WSPR[id];
+  if (typeof document === "undefined") return (WSPR[id] = null);
+  const cv = document.createElement("canvas"); cv.width = cv.height = 80; const g = cv.getContext("2d");
+  const R = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(x, y, w, h); };
+  const S = (x, y, w, h, cols) => { for (let i = 0; i < h; i++) R(x, y + i, w, 1, cols[Math.min(cols.length - 1, Math.floor(i * cols.length / h))]); };
+  const E = (cx, cy, rx, ry, col) => { g.fillStyle = col; for (let y = -ry; y <= ry; y++) { const hw = Math.round(rx * Math.sqrt(1 - y * y / (ry * ry))); g.fillRect(cx - hw, cy + y, hw * 2, 1); } };
+  const box = (x, y, w, h, cols, line) => { R(x - 1, y - 1, w + 2, h + 2, line); S(x, y, w, h, cols); R(x, y, w, 1, "rgba(255,255,255,.28)"); };
+  const hands = (skin, shade, line, hi) => { for (const sx of [-1, 1]) { const cx = 40 + sx * 27; E(cx, 72, 17, 13, line); E(cx, 73, 15, 11, shade); E(cx, 71, 15, 10, skin); E(cx - sx * 2, 66, 9, 4, hi); for (let k = 0; k < 3; k++) R(cx - 9 + k * 6, 72 + (k % 2) * 2, 5, 1, shade); } };
+  if (id === "ar") {
+    E(40, 15, 15, 15, "#050506"); E(40, 15, 14, 14, "#2e3037"); E(40, 16, 12, 12, "#1f2025"); E(40, 15, 7, 7, "#050506"); E(40, 15, 5, 5, "#0d0d10"); R(31, 3, 18, 1, "#8a8e98"); R(27, 8, 2, 2, "#6c707a"); R(52, 18, 1, 6, "#15161a");   // suppressor, end on
+    box(28, 30, 24, 14, ["#3a3c44", "#2a2c32", "#1b1c20"], "#050506"); for (let y = 33; y < 43; y += 3) R(28, y, 24, 1, "#0c0c0e");                       // railed handguard
+    box(53, 33, 6, 10, ["#2c2c32", "#1a1a1e"], "#050506"); R(55, 35, 2, 2, "#ff3a3a");                                                               // laser module
+    box(22, 43, 36, 14, ["#3d4049", "#2c2f36", "#1d1f24"], "#050506"); R(25, 45, 30, 9, "#0a1317"); S(26, 46, 28, 7, ["#16353f", "#0c1d24"]); E(40, 49, 6, 4, "rgba(255,60,60,.26)"); R(39, 48, 2, 2, "#ff3030"); R(24, 41, 32, 2, "#15161a");   // red dot optic
+    box(18, 57, 44, 12, ["#3e414a", "#2d3037", "#212329"], "#050506"); R(58, 59, 4, 6, "#0b0b0d"); R(35, 57, 10, 3, "#9a9ea8"); R(39, 57, 2, 1, "#050506"); for (let x = 20; x < 58; x += 4) R(x, 57, 2, 1, "#5a5e68");   // receiver and charging handle
+    box(31, 69, 18, 5, ["#2b2d33", "#1b1c20"], "#050506"); box(25, 74, 30, 8, ["#26272c", "#16171a", "#0d0d10"], "#050506");                       // buffer tube and stock
+    hands("#2a2a30", "#17171a", "#050506", "#46464e");
+  } else if (id === "ray") {
+    const ch = ["#e4eaf0", "#9aa6b2", "#5d6874"];
+    E(40, 12, 19, 11, "#061010"); E(40, 12, 17, 9, "#139c85"); E(40, 12, 12, 6, "#3ff0d0"); E(40, 12, 6, 3, "#e6fff9"); R(26, 6, 10, 1, "#9ffbe9");   // emitter dish
+    for (let i = 0; i < 5; i++) { const w = 16 + i * 4, y = 23 + i * 6; box(40 - w / 2, y, w, 4, ch, "#0a0f12"); R(40 - w / 2 + 1, y + 4, w - 2, 1, "#21e0bd"); }   // coil rings
+    for (let r = 0; r < 22; r++) { const wd = 2 + Math.floor(r * 0.7), col = r % 7 ? "#6d7a86" : "#c5d0da"; R(21 - wd, 44 + r, wd, 1, col); R(59, 44 + r, wd, 1, col); R(21 - wd, 44 + r, 1, 1, "#0a0f12"); R(59 + wd - 1, 44 + r, 1, 1, "#0a0f12"); }   // fins
+    box(21, 47, 38, 20, ch, "#0a0f12"); R(34, 47, 12, 20, "#0a2b27"); R(35, 47, 10, 20, "#14c4a6"); R(38, 47, 4, 20, "#b5fff0");                       // body and glowing tube
+    for (let y = 51; y < 64; y += 3) { R(23, y, 8, 1, "#0a0f12"); R(49, y, 8, 1, "#0a0f12"); }
+    box(30, 67, 20, 12, ch, "#0a0f12");
+    hands("#8a96a2", "#4a5560", "#0a0f12", "#c5d0da");
+  } else if (id === "shotgun") {
+    for (const cx of [29, 51]) { E(cx, 14, 12, 12, "#050506"); E(cx, 14, 11, 11, "#3b3d44"); E(cx, 15, 9, 9, "#25262b"); E(cx, 14, 6, 6, "#030303"); R(cx - 8, 4, 10, 1, "#8a8e98"); }   // barrels, end on
+    box(36, 22, 8, 20, ["#4a4c54", "#2a2b30"], "#050506");                                                                                          // rib
+    box(20, 40, 40, 13, ["#5a5c66", "#3c3d45", "#25262c"], "#050506"); R(36, 41, 8, 3, "#c9ccd4"); R(22, 47, 36, 1, "#25262c");                       // breech and top lever
+    S(26, 53, 28, 27, ["#94602f", "#74481f", "#56330f"]); R(25, 53, 1, 27, "#2b1708"); R(54, 53, 1, 27, "#2b1708"); for (let y = 56; y < 78; y += 4) R(28 + (y % 8), y, 20, 1, "rgba(40,20,5,.35)");   // walnut stock
+    hands("#d9a273", "#a8744a", "#3a1d10", "#f0c298");
+  } else return (WSPR[id] = null);
+  return (WSPR[id] = cv);
+}
+/* per-weapon recoil and muzzle effects; o is the sprite's screen box {x, y, s} */
+const WSTYLE = {
+  ar: { kd: 0.09, kk: 4, fx(c, age, o) {
+    const mx = o.x + 40 * o.s, my = o.y + 14 * o.s;
+    if (age < 0.05) { c.save(); c.globalAlpha = 0.85 * (1 - age / 0.05); c.fillStyle = "#ffe7a8"; c.beginPath(); c.arc(mx, my, 5 * o.s * (0.6 + age * 8), 0, 6.283); c.fill(); c.fillStyle = "#fff"; c.beginPath(); c.arc(mx, my, 2 * o.s, 0, 6.283); c.fill(); c.restore(); }
+    if (age < 0.3) { c.fillStyle = "#e0b040"; c.fillRect(o.x + 54 * o.s + age * 230, o.y + 56 * o.s - 140 * age + 760 * age * age, 5, 3); }   // ejected brass
+  } },
+  ray: { kd: 0.14, kk: 6, fx(c, age, o) {
+    const mx = o.x + 40 * o.s, my = o.y + 11 * o.s, t = age / 0.18; let g;
+    c.save(); c.globalCompositeOperation = "lighter";
+    g = c.createRadialGradient(mx, my, 0, mx, my, 20 * o.s); g.addColorStop(0, "rgba(120,255,225," + (0.4 + 0.15 * Math.sin(NOW * 6)) + ")"); g.addColorStop(1, "rgba(120,255,225,0)"); c.fillStyle = g; c.fillRect(mx - 20 * o.s, my - 20 * o.s, 40 * o.s, 40 * o.s);
+    if (t < 1) {
+      const a = 1 - t; g = c.createLinearGradient(0, my, 0, my - 170); g.addColorStop(0, "rgba(150,255,235," + a + ")"); g.addColorStop(1, "rgba(60,220,190,0)");
+      c.fillStyle = g; c.fillRect(mx - 3 - 4 * a, my - 170, 6 + 8 * a, 170);
+      c.strokeStyle = "rgba(170,255,238," + a + ")"; c.lineWidth = 3; c.beginPath(); c.ellipse(mx, my - 6 * t, 12 + 40 * t, 5 + 14 * t, 0, 0, 6.283); c.stroke();
+      c.fillStyle = "rgba(230,255,250," + a + ")"; c.beginPath(); c.arc(mx, my, 14 * a, 0, 6.283); c.fill();
+    }
+    c.restore();
+  } },
+  shotgun: { kd: 0.26, kk: 14, fx(c, age, o) {
+    if (age < 0.09) for (const cx of [33, 47]) pixFlash(c, o.x + cx * o.s, o.y + 6 * o.s, 1.35 * (0.85 + 0.15 * (1 - age / 0.09)), cx < 40 ? -1 : 1);
+    if (age < 0.6) { const a = 1 - age / 0.6; c.save(); c.fillStyle = "rgba(190,190,190," + 0.22 * a + ")"; for (const cx of [33, 47]) { c.beginPath(); c.arc(o.x + cx * o.s, o.y + 6 * o.s - age * 70, 8 + age * 40, 0, 6.283); c.fill(); } c.restore(); }
+  } }
+};
+function drawWeapon(c) {
+  const st = WSTYLE[G.weapon], spr = st && weaponSprite(G.weapon);
+  if (!spr) { drawPistol(c); return; }
+  const age = Math.max(0, NOW - pistolT), kick = age < st.kd ? Math.sin(age / st.kd * Math.PI) : 0;
+  const h = 160 * (1 + kick * 0.03), o = { x: CX - h / 2, y: HY - h + 8 - kick * st.kk, s: h / 80 };
+  c.save(); c.beginPath(); c.rect(0, 0, W, HY); c.clip(); c.imageSmoothingEnabled = false;
+  c.drawImage(spr, o.x, o.y, h, h); st.fx(c, age, o);
+  c.restore();
+}
+function weaponIcon(c, id, cx, by, h) {
+  c.imageSmoothingEnabled = false;
+  if (id === "pistol") { if (PISTOL_IMG && PISTOL_IMG.complete && PISTOL_IMG.naturalWidth) { const w = h * PISTOL_VIEW.w / PISTOL_VIEW.h; c.drawImage(PISTOL_IMG, PISTOL_VIEW.x, PISTOL_VIEW.y, PISTOL_VIEW.w, PISTOL_VIEW.h, cx - w * PISTOL_VIEW.sightX / PISTOL_VIEW.w, by - h, w, h); } return; }
+  const spr = weaponSprite(id); if (spr) c.drawImage(spr, cx - h / 2, by - h, h, h);
+}
 function drawPistol(c) {
   if (!PISTOL_IMG || !PISTOL_IMG.complete || !PISTOL_IMG.naturalWidth) return;
   const age = Math.max(0, NOW - pistolT), kick = age < 0.16 ? Math.sin(age / 0.16 * Math.PI) : 0;
@@ -700,24 +813,7 @@ function drawPistol(c) {
   const x = CX - w * PISTOL_VIEW.sightX / PISTOL_VIEW.w, y = HY - h + 8 - kick * 6;
   c.save(); c.beginPath(); c.rect(0, 0, W, HY); c.clip();
   c.imageSmoothingEnabled = false;
-  if (age < 0.075) {
-    const mx = CX, my = y + 2, size = 0.85 + 0.15 * (1 - age / 0.075);
-    c.save(); c.translate(mx, my); c.scale((pistolShot % 2 ? 1 : -1) * size, size);
-    const flash = [
-      ".........r..........", ".........rr.........", "........roo.........", "........roy.........",
-      ".......royyr........", "..r....royyor.......", "..rr..royyyor.......", "..ror.roywyyr..r....",
-      "...roroywwyyr.rr....", "...royyywwyyrorr....", "...royywwwyyoyor....", "..royyywwwyyyorr....",
-      ".rroyyywwwyyyor.....", ".royyyywwwwyyorr....", "..royywwwwwyyyor....", "..royywwwwwyyorr....",
-      "...roywwwwwyyr......", "....roywwwyyyr......", ".....roywwyyr.......", "......rywyyr........",
-      ".......yyyrr........", "........yy.........."
-    ];
-    const colours = { r: "#bd321c", o: "#fa7326", y: "#ffc76b", w: "#fff4ce" }, pixel = 3;
-    flash.forEach((row, iy) => { for (let ix = 0; ix < row.length; ix++) {
-      const colour = colours[row[ix]]; if (!colour) continue;
-      c.fillStyle = colour; c.fillRect((ix - 9) * pixel, (iy - 20) * pixel, pixel, pixel);
-    } });
-    c.restore();
-  }
+  if (age < 0.075) pixFlash(c, CX, y + 2, 0.85 + 0.15 * (1 - age / 0.075), pistolShot % 2 ? 1 : -1);
   c.drawImage(PISTOL_IMG, PISTOL_VIEW.x, PISTOL_VIEW.y, PISTOL_VIEW.w, PISTOL_VIEW.h, x, y, w, h);
   c.restore();
 }
@@ -871,6 +967,15 @@ function screens(c) {
     txt(c, "FINAL SCORE  " + G.final.total, W / 2, 360, 40, "#7a1f12", "center", true); txt(c, "best " + G.best, W / 2, 394, 20, ink);
     if (G.net.hosted) txt(c, G.net.status, W / 2, 420, 17, G.net.retry ? "#8a1d12" : ink);
     txt(c, "ENTER for the title" + (G.net.hosted ? "      S  leaderboard" : "") + (G.net.retry ? "      R  retry save" : ""), W / 2, 452, 18, ink);
+  } else if (G.state === "weapon") {
+    dark(0.7); title(c, "CHOOSE YOUR ARMS", 64, 44, "#b8985a"); txt(c, "Looks only. Every weapon scores the same.", W / 2, 100, 16, "#c9b98a");
+    WEAPONS.forEach((w, i) => {
+      const sel = w.id === G.weapon, x = 50 + i * 220, bob = sel ? Math.sin(NOW * 3) * 3 : 0;
+      c.save(); c.globalAlpha = sel ? 1 : 0.55; rr(c, x, 130, 200, 310, 8); c.fillStyle = "rgba(22,17,10,.88)"; c.fill(); c.lineWidth = sel ? 3 : 1; c.strokeStyle = sel ? "#dcb457" : "#5a4a2a"; if (sel) { c.shadowColor = "#dcb457"; c.shadowBlur = 18; } c.stroke(); c.restore();
+      c.save(); c.globalAlpha = sel ? 1 : 0.6; c.beginPath(); c.rect(x + 2, 132, 196, 270); c.clip(); weaponIcon(c, w.id, x + 100, 392 + bob, 200); c.restore();
+      txt(c, String(i + 1), x + 16, 150, 17, "#b8985a", "left", true); txt(c, w.name, x + 100, 414, 18, sel ? "#ffd27a" : "#c9b98a", "center", true); txt(c, w.note, x + 100, 432, 13, "#a8987a");
+    });
+    txt(c, "LEFT / RIGHT or 1 to " + WEAPONS.length + " to choose      ENTER to defend the keep      ESC back", W / 2, 488, 17, "#e8e2d0");
   } else if (G.state === "name") {
     const N = G.net; dark(0.6); parch(c, 190, 120, 580, 300); const ink = "#2b1d0e";
     txt(c, "WHO DARES ENTER?", W / 2, 168, 34, "#7a1f12", "center", true); txt(c, "Your name goes on the dungeon records.", W / 2, 206, 18, ink);
@@ -984,7 +1089,7 @@ function render(c, now) {
     }
     drawChunks(c, dt);
     drawDaggers(c);
-    drawPistol(c); // Target words stay readable in front of the weapon and flash.
+    drawWeapon(c); // Target words stay readable in front of the weapon and flash.
     list.forEach(e => { if (e !== G.lock) plaque(c, e); }); if (G.lock && list.includes(G.lock)) plaque(c, G.lock);
   }
   motes.forEach(m => { m.y -= m.v * dt * 0.4; m.x += Math.sin(NOW * 0.7 + m.v) * dt * 6; if (m.y < 0) m.y = 400; c.globalAlpha = 0.16 + 0.1 * Math.sin(NOW + m.v); c.fillStyle = "#e8c890"; c.fillRect(m.x, m.y, m.r, m.r); });
@@ -1018,6 +1123,8 @@ if (typeof window !== "undefined" && typeof document !== "undefined" && document
   // Hosted services live in browser glue. Local file play stays fully offline.
   const hosted = location.protocol === "https:" || location.protocol === "http:";
   const N = G.net; N.hosted = hosted;
+  try { const w = localStorage.getItem("dt_weapon"); if (WEAPONS.some(x => x.id === w)) G.weapon = w; } catch (e) {}
+  hooks.weapon = id => { try { localStorage.setItem("dt_weapon", id); } catch (e) {} };
   const storage = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); return true; } catch { return false; } } };
   const parseSaved = k => { try { return JSON.parse(storage.get(k)); } catch { return null; } };
   let player = parseSaved("dt_player"), pending = parseSaved("dt_pending_runs") || [], lastFinal = null, saving = false, boardMode = "", boardRequest = 0;
