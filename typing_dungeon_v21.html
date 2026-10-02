@@ -608,20 +608,21 @@ const snd = (() => {
     kill() { tone(130, 45, 0.28, "sine", 0.35); puff(0.25, 900, 0.3); }, hurt() { tone(70, 30, 0.5, "sine", 0.6); puff(0.4, 600, 0.5); },
     growl() { tone(90, 55, 0.55, "sawtooth", 0.09); }, bat() { puff(0.6, 3000, 0.07); tone(1800, 2600, 0.15, "sine", 0.02); }, door() { tone(95, 55, 0.9, "sawtooth", 0.1); puff(0.8, 500, 0.12); },
     armor() { tone(1400, 700, 0.12, "square", 0.08); puff(0.2, 5000, 0.2); }, throw() { puff(0.35, 2500, 0.1); tone(700, 1500, 0.3, "triangle", 0.03); },
+    bow() { puff(0.09, 3400, 0.07); tone(420, 150, 0.13, "triangle", 0.05); },
     tick(dt, danger) { if (!ac || !danger) { hb = 0; return; } hb -= dt; if (hb <= 0) { hb = 0.62; tone(58, 40, 0.14, "sine", 0.4); setTimeout(() => tone(52, 38, 0.16, "sine", 0.3), 170); } }
   };
 })();
 /* ---- effects (driven by hooks from the game logic) ---- */
 let NOW = 0, shake = 0, redFlash = 0, BG = null;
-const parts = [], deaths = [], floats = [], lens = [], stains = [], drips = [], bats = [], chunks = []; let nextDrip = 1, nextBat = 7;
-function clearFx() { [parts, deaths, floats, lens, stains, drips, bats, chunks].forEach(a => { a.length = 0; }); }
+const parts = [], deaths = [], floats = [], lens = [], stains = [], drips = [], bats = [], chunks = [], arrows = []; let nextDrip = 1, nextBat = 7, bowT = -9;
+function clearFx() { [parts, deaths, floats, lens, stains, drips, bats, chunks, arrows].forEach(a => { a.length = 0; }); bowT = -9; }
 function burst(x, y, n, cols, sp, life) { for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, v = sp * (0.3 + Math.random()); parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - sp * 0.5, life: life * (0.6 + Math.random() * 0.6), age: 0, col: cols[i % cols.length], sz: 1.5 + Math.random() * 2 }); } }
 function pos(e) {
   const hold = e.hold || 0, u = Math.max(0, Math.min(0.999, (G.clock - e.born - hold) / (e.life - hold))), s = 1 / (1 + 6 * (1 - u));
   if (e.type === "bat") return { u, s, k: TK.bat, x: CX + ([-0.3, 0, 0.3][e.air] + 0.04 * Math.sin(NOW * 2.4 + e.air * 2)) * W * s, y: HOR + (FEET - HOR) * s - (60 + 25 * Math.sin(NOW * 3 + e.air)) * s };
   return stagePos(e, u);
 }
-hooks.hit = e => { const P = pos(e); e._f = 0.12; snd.hit(); burst(P.x, P.y - 150 * P.s * P.k, 6, ["#9a1812", "#6a0e0a", "#c02a20"], 170, 0.4); };
+hooks.hit = e => { const P = pos(e); e._f = 0.12; snd.hit(); const cy = P.y - 150 * P.s * P.k; burst(P.x, cy, 6, ["#9a1812", "#6a0e0a", "#c02a20"], 170, 0.4); if (!TYPES[e.type].citizen) shootArrow(P.x, cy); };
 hooks.miss = e => { e._m = 0.25; snd.miss(); };
 hooks.damage = () => { shake = 0.4; redFlash = 0.5; snd.hurt(); for (let i = 0; i < 8; i++) lens.push({ x: 120 + Math.random() * 720, y: 40 + Math.random() * 330, r: 18 + Math.random() * 40, t0: NOW }); };
 hooks.door = () => snd.door();
@@ -656,6 +657,48 @@ hooks.kill = o => {
   floats.push({ txt: RANKS[o.rk].k, x: P.x, y: P.y - 250 * P.s * P.k, t0: NOW, col: ["#8fb08a", "#8aa6bf", "#c9a24a", "#c07a3a", "#b04a3a"][o.rk] });
   snd.kill();
 };
+/* ---- the player's bow: an arrow leaves the bow for every correct key, purely visual (the hit resolves in the game logic) ---- */
+const BOW = { x: CX, y: HY - 10 };   // the bow rises from behind the HUD panel, limbs curving away from the shooter
+function shootArrow(tx, ty) {
+  const x0 = BOW.x - 56 + (Math.random() - 0.5) * 16, y0 = BOW.y - 37;
+  const d = Math.hypot(tx - x0, ty - y0);
+  arrows.push({ x0, y0, tx, ty, d, t0: NOW, dur: Math.max(0.05, Math.min(0.13, d / 2600)) });
+  bowT = NOW; snd.bow();
+}
+function drawArrows(c) {
+  for (let i = arrows.length - 1; i >= 0; i--) {
+    const a = arrows[i], p = (NOW - a.t0) / a.dur; if (p >= 1) { arrows.splice(i, 1); continue; }
+    const e = p, x = a.x0 + (a.tx - a.x0) * e, y = a.y0 + (a.ty - a.y0) * e, ang = Math.atan2(a.ty - a.y0, a.tx - a.x0);
+    c.save(); c.translate(x, y); c.rotate(ang); c.globalAlpha = 0.4 + 0.6 * (1 - p);
+    c.strokeStyle = "rgba(228,222,200,.3)"; c.lineWidth = 2; c.beginPath(); c.moveTo(-24, 0); c.lineTo(-Math.min(70, a.d * 0.09), 0); c.stroke();   // streak
+    c.strokeStyle = "#8a6a3a"; c.lineWidth = 2.4; c.beginPath(); c.moveTo(-22, 0); c.lineTo(12, 0); c.stroke();                                        // shaft
+    c.fillStyle = "#d8dde4"; c.beginPath(); c.moveTo(21, 0); c.lineTo(9, -4); c.lineTo(9, 4); c.closePath(); c.fill();                                  // head
+    c.fillStyle = "#b03028"; c.beginPath(); c.moveTo(-22, 0); c.lineTo(-31, -5); c.lineTo(-27, 0); c.lineTo(-31, 5); c.closePath(); c.fill();            // fletching
+    c.restore();
+  }
+}
+function drawBow(c) {
+  const t = Math.max(0, 1 - (NOW - bowT) / 0.22), kick = Math.sin(Math.min(1, t) * Math.PI) * 10;
+  c.save(); c.translate(BOW.x, BOW.y + kick); c.lineCap = "round";
+  const U = [-64, -108], G = [-96, -14], L = [-48, 34];        // upper tip, grip, lower tip (the lower limb leaves the frame)
+  const limb = () => { c.beginPath(); c.moveTo(U[0], U[1]); c.quadraticCurveTo(-134, -58, G[0], G[1]); c.quadraticCurveTo(-122, 8, L[0], L[1]); };
+  c.lineWidth = 14; c.strokeStyle = "rgba(6,4,2,.85)"; limb(); c.stroke();                       // dark edge so the limb reads against the stone
+  c.lineWidth = 10; c.strokeStyle = lg(c, -140, 0, -40, 0, [[0, "#2c1a0a"], [0.45, "#8a6438"], [1, "#4a2f14"]]); limb(); c.stroke();
+  c.lineWidth = 3.4; c.strokeStyle = "rgba(214,182,132,.34)"; limb(); c.stroke();                // highlight, so the limb has some round
+  c.lineWidth = 15; c.strokeStyle = "#1c1106"; c.beginPath(); c.moveTo(-104, -30); c.lineTo(-90, 2); c.stroke();   // grip
+  c.fillStyle = "rgba(20,15,10,.9)"; c.beginPath(); c.ellipse(-95, -14, 14, 19, 0.18, 0, 6.283); c.fill();          // the hand on the grip
+  const nock = [-56 - t * 16, -37];                            // straight at rest, snapping forward when loosed
+  c.lineWidth = 2; c.strokeStyle = "rgba(232,228,212,.82)";
+  c.beginPath(); c.moveTo(U[0], U[1]); c.lineTo(nock[0], nock[1]); c.lineTo(L[0], L[1]); c.stroke();
+  if (t > 0.04) {                                              // the arrow, still leaving the string
+    c.globalAlpha = Math.min(1, t * 3);
+    c.strokeStyle = "#8a6a3a"; c.lineWidth = 2.4; c.beginPath(); c.moveTo(nock[0], nock[1] + 4); c.lineTo(nock[0] + 16, nock[1] - 92); c.stroke();
+    c.fillStyle = "#d8dde4"; c.beginPath(); c.moveTo(nock[0] + 19, nock[1] - 104); c.lineTo(nock[0] + 11, nock[1] - 90); c.lineTo(nock[0] + 22, nock[1] - 86); c.closePath(); c.fill();
+    c.fillStyle = "#b03028"; c.beginPath(); c.moveTo(nock[0], nock[1] + 4); c.lineTo(nock[0] - 7, nock[1] + 13); c.lineTo(nock[0] + 1, nock[1] + 10); c.lineTo(nock[0] + 5, nock[1] + 16); c.closePath(); c.fill();
+    c.globalAlpha = 1;
+  }
+  c.restore();
+}
 function drawDaggers(c) {
   G.daggers.forEach(d => {
     const p = Math.min(1, d.t / d.dur), x0 = d.x0 === undefined ? CX : d.x0, y0 = d.y0 === undefined ? 250 : d.y0, x = x0 + (CX - x0) * p, y = y0 + (470 - y0) * Math.pow(p, 1.5), s = 0.25 + 1.5 * p;
@@ -896,6 +939,7 @@ function render(c, now) {
     }
     drawChunks(c, dt);
     drawDaggers(c);
+    drawArrows(c);
     list.forEach(e => { if (e !== G.lock) plaque(c, e); }); if (G.lock && list.includes(G.lock)) plaque(c, G.lock);
   }
   motes.forEach(m => { m.y -= m.v * dt * 0.4; m.x += Math.sin(NOW * 0.7 + m.v) * dt * 6; if (m.y < 0) m.y = 400; c.globalAlpha = 0.16 + 0.1 * Math.sin(NOW + m.v); c.fillStyle = "#e8c890"; c.fillRect(m.x, m.y, m.r, m.r); });
@@ -916,7 +960,7 @@ function render(c, now) {
     redFlash = Math.max(0, redFlash - dt);
     const nearU = G.enemies.reduce((m, e) => TYPES[e.type].citizen ? m : Math.max(m, pos(e).u), 0);
     if (nearU > 0.55) { const k = Math.min(1, (nearU - 0.55) / 0.4), g = c.createRadialGradient(CX, 250, 330 - 170 * k, CX, 250, 640); g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(1, "rgba(0,0,0," + 0.6 * k + ")"); c.fillStyle = g; c.fillRect(0, 0, W, HY); }
-    snd.tick(dt, nearU > 0.8); hud(c); drawWave(c);
+    snd.tick(dt, nearU > 0.8); hud(c); drawBow(c); drawWave(c);
   }
   c.globalCompositeOperation = "saturation"; c.fillStyle = "rgba(128,128,128,.30)"; c.fillRect(0, 0, W, H); c.globalCompositeOperation = "source-over";
   const vg = c.createRadialGradient(CX, 250, 260, CX, 250, 720); vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,.40)"); c.fillStyle = vg; c.fillRect(0, 0, W, H);
