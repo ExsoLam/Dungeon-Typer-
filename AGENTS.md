@@ -39,9 +39,8 @@ using it. Establish ownership; if it is uncertain, ask the owner before switchin
   databases. Preserve their bindings, scope, migrations, browser retry queue and
   stored scores. Use additive migrations; obtain explicit approval for deleting
   scores, destructive migrations or importing legacy scores into production.
-- The older Pages workflow is still present and currently fails. Cloudflare is
-  the verified game and score host. Do not enable competing publishers or treat
-  Pages failures as a reason to change game files or database configuration.
+- The failing GitHub Pages workflow has been removed. Cloudflare is the only game
+  and score host. Do not add a competing publisher.
 
 For handoff, report the branch and worktree, local files you deliberately left
 alone, unresolved conflicts, checks and tested SHA. Documentation does not prove

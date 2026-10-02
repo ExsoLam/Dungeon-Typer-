@@ -28,9 +28,7 @@ Do not drop or alter shared preview tables without coordinating an upgrade.
 A single production URL cannot simultaneously represent multiple PRs: production
 shows merged code; each PR has a separate live version.
 
-The Pages proposal in PR #9 is an alternative static host. This Worker deployment
-serves the game and API together and should be the chosen path for database play.
-Do not enable two competing production publishing workflows.
+The earlier GitHub Pages workflow has been removed. This Worker deployment serves the game and API together and is the only production publisher.
 
 ## One-time Cloudflare configuration
 

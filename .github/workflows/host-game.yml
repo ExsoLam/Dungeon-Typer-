@@ -86,4 +86,4 @@ jobs:
                   print('Waiting for deployed revision:',error,flush=True)
                   time.sleep(5)
           PY
-          curl --fail --retry 3 "$GAME_URL/api/leaderboard?mode=strict"
+          curl --fail --silent --show-error --retry 10 --retry-delay 3 --retry-all-errors "$GAME_URL/api/leaderboard?mode=strict"
