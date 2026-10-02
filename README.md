@@ -114,59 +114,15 @@ The hosted game saves scores to a Cloudflare D1 database through a Worker (`serv
 - Scores are reported by the client, so this is a casual leaderboard rather than a cheat-proof one.
 - Offline file play still works and shows an offline message in the Scores panel.
 
-Production is `https://play.dtyper.workers.dev`. Every code PR gets its own preview at `https://pr-N.dtyper.workers.dev` with a separate database, so test scores never reach the production board. Setup, deployment and the testing loop are in [HOSTING.md](HOSTING.md). The two scores on the old issue board were not imported, so the hosted boards started empty.
-
-### Legacy issue pipeline
-
-Scores are submitted as GitHub issues and processed by a workflow into `scores.json`.
-
-1. A `[SCORE]` issue is opened, titled `[SCORE] <mode> - <score> - <submission id>`, with the same values repeated in the body as `**Label:** value` lines (`**Name:**`, `**Mode:**`, `**Score:**`, `**Submission ID:**`, plus anything else the sender adds).
-2. `.github/workflows/process-score.yml` runs on `issues: [opened]` and ignores any title that does not start with `[SCORE]`.
-3. The issue is validated: the author must be in `ALLOWED_AUTHORS` (default: the repository owner), the mode must be in `ALLOWED_MODES`, the score must be within `MAX_SCORE`, the name and submission id must match their patterns, and the submission id must not already be on any board.
-4. An accepted score is appended, sorted by score (descending, then date, then id), trimmed to `TOP_N` per mode, and written to `scores.json` with an `updated` timestamp. The workflow commits that file itself.
-5. The issue is commented with the outcome (accepted plus rank, `not_top`, `duplicate`, or the rejection reason) and closed. Issues from other authors are ignored and left open, so nobody can bypass the sender by opening an issue by hand.
-
-This is the older path and is kept until it is formally retired. The hosted game no longer uses it: it submits straight to the Worker below. The `[SCORE]` issues were created by an older leaderboard Worker that lives outside this repo.
-
-Workflow settings, at the top of `.github/workflows/process-score.yml`:
-
-| Variable | Default | Meaning |
-| --- | --- | --- |
-| `ALLOWED_MODES` | `strict,original` | Modes accepted; empty accepts any mode name |
-| `MAX_SCORE` | `1000000` | Sanity ceiling, not a rule |
-| `TOP_N` | `100` | Entries kept per mode |
-| `ALLOWED_AUTHORS` | `github.repository_owner` | Who may create score issues; empty accepts anyone (not recommended) |
-
-`scores.json` looks like this:
-
-```json
-{
-  "updated": "2026-10-02T04:05:03Z",
-  "boards": {
-    "strict": [
-      {
-        "name": "Brutus",
-        "score": 7523,
-        "id": "e720c04d-87d9-4685-a4d3-fdbf71dc7dc8",
-        "date": "2026-10-02T03:54:19Z",
-        "extra": { "ip": "...", "submitted": "2026-10-02T03:54:18.897Z" }
-      }
-    ]
-  }
-}
-```
-
-Any `**Label:** value` line beyond name, mode, score and submission id is stored on the entry under `extra` (up to 12 fields; keys are lowercased with non-alphanumeric characters replaced by underscores, values trimmed to 64 characters). New fields therefore need no workflow change. A missing or unreadable `scores.json` is not fatal: the workflow starts a fresh board.
+Production is `https://play.dtyper.workers.dev`. Every code PR gets its own preview at `https://pr-N.dtyper.workers.dev` with a separate database, so test scores never reach the production board. Setup, deployment and the testing loop are in [HOSTING.md](HOSTING.md). The earlier GitHub issue pipeline has been retired, and its two scores were not imported, so the hosted boards started empty.
 
 ## Repo layout
 
 ```
 typing_dungeon_v21.html                the game, single file
-scores.json                            legacy leaderboard data, written by the workflow
 server/                                hosted score API (Cloudflare Worker) and D1 migrations
-scripts/, tests/                       host staging, legacy import and verification
+scripts/, tests/                       host staging and verification
 HOSTING.md                             hosting, database setup and the playback loop
-.github/workflows/process-score.yml    turns [SCORE] issues into scores.json entries
 .github/workflows/check-game.yml       checks on every PR
 .github/workflows/host-game.yml        PR previews and production deploy on Cloudflare
 ```
