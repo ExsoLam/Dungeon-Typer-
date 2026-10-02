@@ -4,6 +4,13 @@ on:
     types: [opened, synchronize, reopened]
   push:
     branches: [main]
+    paths:
+      - typing_dungeon_v21.html
+      - SOUNDS/**
+      - server/**
+      - scripts/**
+      - tests/**
+      - .github/workflows/host-game.yml
   workflow_dispatch:
 permissions:
   contents: read
