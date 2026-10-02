@@ -3,17 +3,61 @@
 Durable conventions for this repo. Read this first. There is no `STATUS.md` here:
 live state is in the issues and PRs, and the README covers the game itself.
 
-A browser typing game in one HTML file, plus a leaderboard that arrives as GitHub
-issues and is turned into `scores.json` by a workflow. Three stages, strict and
-original modes, rules reverse engineered from The Typing of the Dead.
+A browser typing game in one HTML file, with hosted scores in Cloudflare D1.
+The older GitHub issue workflow still writes `scores.json`; keep it intact until
+its retirement is explicitly agreed. Three stages, strict and original modes,
+rules reverse engineered from The Typing of the Dead.
+
+## Start here: preserve the repo and local work
+
+Before changing files or revisions, inspect `git status --short --branch`,
+`git worktree list`, the current branch, and the open PRs. Read each relevant PR's
+current head and diff. A clean checkout does not prove that another agent is not
+using it. Establish ownership; if it is uncertain, ask the owner before switching.
+
+- Use one writer per worktree. Create an isolated worktree from the intended ref
+  for concurrent work; do not switch another person's or agent's checkout.
+- Preserve staged changes, unstaged changes, untracked files, stashes and local
+  commits. Never use `reset --hard`, `clean`, blanket checkout/restore, stash drop
+  or force push to make a conflict disappear. Do not stash someone else's work.
+  Use an isolated worktree when local changes belong to another task.
+- Resolve conflicts file by file. Compare the merge base, both sides and the PR
+  intent. Do not accept all of one side or replace an entire game file. Preserve
+  unrelated fixes and data, then inspect the final diff against current `main`.
+- Multiple game versions (`v21`, `v31`, `v38`) are present. Their names do not make
+  them interchangeable. Hosting currently stages `typing_dungeon_v21.html`.
+  Do not rename, delete, consolidate or switch the hosted version merely to tidy
+  the repo. Agree a version migration separately and test the intended gameplay.
+- The long embedded art and word-list lines are irreplaceable inputs. Use anchored
+  patches, compare their hashes before and after conflict resolution, and never
+  copy the word lists into another file or publish them as an artefact.
+- Keep changes on a branch and PR. Run checks for the files actually changed and
+  retest affected gameplay and score saving in an isolated PR preview. Record the
+  tested SHA, conflict decisions, remaining gaps and deployment URL in the PR.
+- Hosted production is `https://play.dtyper.workers.dev`; previews are
+  `https://pr-N.dtyper.workers.dev`. Production and preview have different D1
+  databases. Preserve their bindings, scope, migrations, browser retry queue and
+  stored scores. Use additive migrations; obtain explicit approval for deleting
+  scores, destructive migrations or importing legacy scores into production.
+- The older Pages workflow is still present and currently fails. Cloudflare is
+  the verified game and score host. Do not enable competing publishers or treat
+  Pages failures as a reason to change game files or database configuration.
+
+For handoff, report the branch and worktree, local files you deliberately left
+alone, unresolved conflicts, checks and tested SHA. Documentation does not prove
+that a deployment or watcher is running; verify those separately.
 
 ## Map
 
 | Path | What it is |
 | --- | --- |
-| `typing_dungeon_v21.html` | The whole game. Single file, no build, no dependencies. Engine, renderer, procedural sound, embedded art, word lists. 943 lines, about 2.2 MB, mostly base64. |
+| `typing_dungeon_v21.html` | The whole game. Single file, no build, no dependencies. Engine, renderer, procedural sound, embedded art, word lists. About 2.2 MB, mostly embedded assets. |
 | `scores.json` | Leaderboard data. Written by the workflow, not by hand. |
 | `.github/workflows/process-score.yml` | Turns `[SCORE]` issues into `scores.json` entries. Contains the validation logic as inline Python. |
+| `server/worker.mjs`, `server/migrations/` | Hosted score API and D1 schema. |
+| `scripts/`, `tests/` | Host staging, legacy import tooling and verification. |
+| `.github/workflows/host-game.yml` | Cloudflare production and isolated PR deployments. |
+| `HOSTING.md` | Database setup, deployment and playback loop. |
 | `README.md` | Setup, controls, modes, scoring, enemy behaviour and the score pipeline. |
 
 ## Key identifiers
@@ -27,7 +71,8 @@ original modes, rules reverse engineered from The Typing of the Dead.
 | Score issue body | `**Name:**`, `**Mode:**`, `**Score:**`, `**Submission ID:**`, plus any extra `**Label:** value` lines |
 | Workflow settings | `ALLOWED_MODES` `strict,original`, `MAX_SCORE` `1000000`, `TOP_N` `100`, `ALLOWED_AUTHORS` = repository owner |
 | `localStorage` keys | `tod_poc_best`, `tod_poc_best_orig`, `tod_poc_mode` |
-| Leaderboard Worker | Not in this repo. It creates the `[SCORE]` issues. |
+| Hosted leaderboard | `server/worker.mjs`, with separate strict/original best scores in D1. |
+| Legacy issue Worker | External to this repo; creates the `[SCORE]` issues. |
 
 ## Hard rules
 
@@ -47,9 +92,21 @@ original modes, rules reverse engineered from The Typing of the Dead.
 
 ## Testing
 
-There is no test suite, no build and no CI on pull requests. The only workflow runs on
-`issues: opened`, so a PR showing no checks is normal and proves nothing. What
-"verified" means here:
+The browser game needs no build. `check-game.yml` runs syntax, three-stage engine,
+validation, schema and local Worker/API checks on PRs. `host-game.yml` deploys
+previews and verifies their exact revision and score scope. A green check does not
+replace playback testing. Useful checks from the repo root:
+
+```sh
+python3 scripts/check-game.py
+node --check server/worker.mjs
+node tests/game-flow.mjs
+node tests/validation.mjs
+python3 tests/database.py
+```
+
+Use `HOSTING.md` for local Worker/API and isolated preview playback instructions.
+For specific changes, "verified" means:
 
 1. **Syntax check the script block without a browser.** Cheap, catches a broken edit
    immediately:
@@ -90,10 +147,10 @@ There is no test suite, no build and no CI on pull requests. The only workflow r
 ## Known gaps
 
 - No licence file. The word lists and par values are from The Typing of the Dead, and the art is embedded. Worth resolving before anything is reused.
-- No tests. The logic is DOM free and testable, so this is an opening rather than a constraint.
-- No CI on pull requests, so nothing checks a PR automatically.
 - `beginDoors()` never runs. The two-door branch after stage 1 (`beginDoors`, `updateDoors`, `BRANCH`, `segName`) has no call site, so the Sewers and Ossuary branch is dead code and the README does not document it. Either wire it up or delete it.
-- The game file does not submit scores. There is no `fetch`, `XMLHttpRequest` or `sendBeacon` in it; submissions come from the Worker.
+- Hosted v21 submits completed runs to the same-origin Worker. Offline file play
+  remains available; browser identity has no cross-device recovery and submitted
+  scores are client-reported. Legacy import is optional and has not been executed.
 
 ## PR ownership and live testing
 
