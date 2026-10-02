@@ -4,9 +4,15 @@ The browser game remains one HTML file, with no build step or dependencies.
 The optional hosted service uses a Cloudflare Worker with static assets and D1.
 Wrangler is deployment tooling only; it is not a browser dependency.
 
+The Cloudflare account subdomain is `dtyper`. Production uses the `play` Worker
+at `https://play.dtyper.workers.dev`; PR previews use
+`https://pr-N.dtyper.workers.dev`. The game opens at `/`, and the original
+`/typing_dungeon_v21.html` entry point remains available. Changing the hostname
+creates a fresh browser identity because local storage belongs to each origin.
+
 ## Release and playback loop
 
-1. Open a code PR. Its head commit deploys to its own `dungeon-typer-pr-N` Worker.
+1. Open a code PR. Its head commit deploys to its own `pr-N` Worker.
 2. Open the deployment link on the PR or in the workflow summary. Check
    `/api/health` for the exact head SHA and `pr-N` scope before testing.
 3. Play, save a score, reload and check the board. Use two browser profiles to test
@@ -115,7 +121,7 @@ to new browser players or retire the issue workflow automatically.
 ## Preview cleanup
 
 Closing a PR does not delete its Worker or test scores automatically in this first
-release. The owner can delete `dungeon-typer-pr-N` in Cloudflare and remove rows
+release. The owner can delete `pr-N` in Cloudflare and remove rows
 with `scope='pr-N'` from the preview database (runs first, then players). Never use
 production for that cleanup. Preview Workers count towards the account's limits.
 

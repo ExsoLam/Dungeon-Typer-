@@ -9,9 +9,9 @@ rmSync(out + '/public', { recursive: true, force: true });
 mkdirSync(out + '/public', { recursive: true });
 copyFileSync('typing_dungeon_v21.html', out + '/public/typing_dungeon_v21.html');
 cpSync('SOUNDS', out + '/public/SOUNDS', { recursive: true });
-writeFileSync(out + '/public/index.html', '<!doctype html><html lang="en"><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=typing_dungeon_v21.html"><title>Dungeon Typer</title><a href="typing_dungeon_v21.html">Play Dungeon Typer</a></html>');
+copyFileSync('typing_dungeon_v21.html', out + '/public/index.html');
 writeFileSync(out + '/wrangler.json', JSON.stringify({
-  name: scope.startsWith('pr-') ? 'dungeon-typer-' + scope : 'dungeon-typer',
+  name: scope.startsWith('pr-') ? scope : 'play',
   main: '../server/worker.mjs', compatibility_date: '2026-10-01', workers_dev: true,
   assets: { directory: './public', binding: 'ASSETS', run_worker_first: ['/api/*'] },
   vars: { SCORE_SCOPE: scope, REVISION: process.env.REVISION || 'local' },
