@@ -7,7 +7,7 @@ foreground masks, light effects, and the wave. The preview uses the game's own
 stagePos() math, so the ghosts are the size and position the game will draw.
 
 Requires Python 3 with tkinter and Pillow:  pip install pillow
-Run:  python stage_mapper.py [image-or-stage.json]
+Run:  python tools/stage_mapper.py [image-or-stage.json]
 
 Mouse: left = place / drag handles, right or middle drag = pan, wheel = zoom.
 Keys:  Delete = remove selected, Ctrl+Z = undo, Ctrl+S = save,

@@ -157,15 +157,15 @@ The hosted game saves scores to a Cloudflare D1 database through a Worker (`serv
 - Scores are reported by the client, so this is a casual leaderboard rather than a cheat-proof one.
 - The boards show scoring version `v48-1`. Runs from the three-stage v21 game are kept in the database but not shown.
 
-Production is `https://play.dtyper.workers.dev`. Every code PR gets its own preview at `https://pr-N.dtyper.workers.dev` with a separate database, so test scores never reach the production board. Setup, deployment and the testing loop are in [HOSTING.md](HOSTING.md).
+Production is `https://play.dtyper.workers.dev`. Every code PR gets its own preview at `https://pr-N.dtyper.workers.dev` with a separate database, so test scores never reach the production board. Setup, deployment and the testing loop are in [docs/HOSTING.md](docs/HOSTING.md).
 
 ## Adding a stage
 
-Stages are data. `stage_mapper.py` lays one out on its background photo and saves it as JSON:
+Stages are data. `tools/stage_mapper.py` lays one out on its background photo and saves it as JSON:
 
 ```sh
 pip install pillow
-python stage_mapper.py
+python tools/stage_mapper.py
 ```
 
 File > New stage from image, then:
@@ -185,13 +185,13 @@ The JSON and the photo then go into the game file as a new stage (see `AGENTS.md
 ```
 typing_dungeon_v48.html                the game, single file
 SOUNDS/                                music, loaded from beside the HTML
-stage_mapper.py                        stage layout tool
+archive/                               older versions (v21, v31, v38, v47), kept for reference
+tools/stage_mapper.py                  stage layout tool
 server/                                hosted score API (Cloudflare Worker) and D1 migrations
-scripts/, tests/                       host staging and verification
-HOSTING.md                             hosting, database setup and the playback loop
+scripts/, tests/                       host staging, the layout check and verification
+docs/HOSTING.md                        hosting, database setup and the playback loop
 .github/workflows/check-game.yml       checks on every PR
 .github/workflows/host-game.yml        PR previews and production deploy on Cloudflare
-typing_dungeon_v21.html, v31, v38, v47 older versions, kept for reference
 ```
 
 ## Working on the game

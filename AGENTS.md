@@ -27,7 +27,7 @@ using it. Establish ownership; if it is uncertain, ask the owner before switchin
 - Multiple game versions (`v21`, `v31`, `v38`, `v47`, `v48`) are present. Their names do
   not make them interchangeable. `typing_dungeon_v48.html` is the development line and
   the hosted game (the owner agreed the v21 to v48 migration). Hosting serves it at `/`
-  and keeps serving `/typing_dungeon_v21.html` at its old path. Do not rename, delete,
+  and keeps serving `/typing_dungeon_v21.html` (from `archive/`) at its old path. Do not rename, delete,
   consolidate or switch the hosted version merely to tidy the repo. Agree a version
   migration separately and test the intended gameplay.
 - The long embedded art and word-list lines are irreplaceable inputs. Use anchored
@@ -54,13 +54,33 @@ that a deployment or watcher is running; verify those separately.
 | --- | --- |
 | `typing_dungeon_v48.html` | The game. Single file, no build, no dependencies. Engine, renderer, procedural sound effects, embedded art, stage photos, weapons and word lists. About 3.8 MB, mostly embedded assets. |
 | `SOUNDS/` | Audio loaded from beside the HTML: stage music, `STAGE END`, `FINAL RESULTS`. The game runs silently without it. `GUNSHOT.*` are no longer used. |
-| `stage_mapper.py` | Desktop tool (Python, tkinter, Pillow) for laying out a stage on its photo and saving it as stage JSON. |
-| `typing_dungeon_v21.html`, `v31`, `v38`, `v47` | Older versions, kept for reference. v21 is still served at its old URL. |
+| `tools/stage_mapper.py` | Desktop tool (Python, tkinter, Pillow) for laying out a stage on its photo and saving it as stage JSON. |
+| `archive/` | Older versions (`v21`, `v31`, `v38`, `v47`), kept for reference. v21 is still served at its old URL. Opened from here they have no music. |
 | `server/worker.mjs`, `server/migrations/` | Hosted score API and D1 schema. |
-| `scripts/`, `tests/` | Host staging and verification. |
+| `scripts/`, `tests/` | Host staging, the layout check and verification. |
 | `.github/workflows/host-game.yml` | Cloudflare production and isolated PR deployments. |
-| `HOSTING.md` | Database setup, deployment and playback loop. |
+| `docs/HOSTING.md` | Database setup, deployment and playback loop. |
 | `README.md` | Setup, controls, modes, scoring, enemy behaviour and the hosted leaderboard. |
+
+## File layout
+
+`scripts/check-layout.py` enforces this in CI. A PR that adds a file anywhere else fails.
+
+| Where | What may live there |
+| --- | --- |
+| root | `README.md`, `AGENTS.md`, `.gitignore`, `LICENSE`, the one hosted game file, and the folders below. Nothing else. |
+| `archive/` | Retired `typing_dungeon_v*.html` versions only. When a new version replaces the hosted one, move the old file here in the same PR as the hosting switch. |
+| `SOUNDS/` | Audio the game loads from beside its HTML. Keep it next to the game file. |
+| `docs/` | Contributor documentation (Markdown and its images). |
+| `tools/` | Desktop tools for contributors, such as the stage mapper. |
+| `scripts/` | CI, hosting and check scripts. |
+| `tests/` | Automated checks. |
+| `server/` | `worker.mjs` and numbered D1 migrations. |
+| `.github/workflows/` | Workflows. |
+
+Scratch output, screenshots, art drafts, test profiles and notes stay out of the repo:
+use your own scratch directory or the ignored `.deploy/`. Adding a new kind of file
+means updating this table and `scripts/check-layout.py` in the same PR.
 
 ## Key identifiers
 
@@ -86,8 +106,8 @@ that a deployment or watcher is running; verify those separately.
 - **Stages are data.** A stage is one `STAGES` entry, one `SEGS` entry at the same index, and one photo. Nothing else should depend on the stage count or a stage's index; per-stage behaviour goes in a field on its `STAGES` entry (as `cap` and `music` do). `WEAPON_AT` is the one exception: the weapon picker opens before that stage index in a full run.
 - **Keep the game logic free of the DOM.** `G`, `tierFor`, `pickFrom`, `key`, `kill`, `update` and the rest must not touch `document` or `window`, so they stay testable headlessly. Browser glue belongs at the bottom of the file behind the `typeof window` guard.
 - **Do not extract or republish the word lists.** They come from The Typing of the Dead (SEGA) and the repo has no licence file. Leave them embedded in the game; do not copy them into another file, repo or gist.
-- **Branch and open a PR; do not push to `main`.** Keep changes on a branch, and keep a PR to one concern.
-- **Treat `typing_dungeon_v48.html` as the public entry point.** `scripts/stage-host.mjs` publishes it as `/` and `/typing_dungeon_v48.html`, and keeps `/typing_dungeon_v21.html` for old links. Check both before renaming or moving either file.
+- **Branch and open a PR against `main`; do not push to `main`.** Keep changes on a branch, and keep a PR to one concern. Never stack a PR on another PR's branch: a PR merged into a branch other than `main` never reaches production (this happened to #20). CI fails a PR whose base is not `main`; if you need another PR's work, wait for it to merge and branch from the new `main`.
+- **Treat `typing_dungeon_v48.html` as the public entry point.** `scripts/stage-host.mjs` publishes it as `/` and `/typing_dungeon_v48.html`, and keeps `/typing_dungeon_v21.html` (from `archive/`) for old links. Check both before renaming or moving either file.
 - **Change the scoring version with the scoring.** If a change alters how scores are earned, bump `VERSION` in `server/worker.mjs` and the `version` the game submits together, and update `tests/validation.mjs` and `tests/api-live.mjs`. Cosmetic changes keep it.
 
 ## Testing
@@ -98,6 +118,7 @@ previews and verifies their exact revision and score scope. A green check does n
 replace playback testing. Useful checks from the repo root:
 
 ```sh
+python3 scripts/check-layout.py
 python3 scripts/check-game.py
 node --check server/worker.mjs
 node tests/game-flow.mjs
@@ -105,7 +126,7 @@ node tests/validation.mjs
 python3 tests/database.py
 ```
 
-Use `HOSTING.md` for local Worker/API and isolated preview playback instructions.
+Use `docs/HOSTING.md` for local Worker/API and isolated preview playback instructions.
 For specific changes, "verified" means:
 
 1. **Syntax check the script block without a browser.** Cheap, catches a broken edit
@@ -122,7 +143,7 @@ For specific changes, "verified" means:
 
 ## Adding a stage
 
-1. Map it in `stage_mapper.py` (see the README) and save the stage JSON next to its photo.
+1. Map it in `tools/stage_mapper.py` (see the README) and save the stage JSON next to its photo.
 2. Recompress the photo to JPEG (quality about 82) and add it as a new `const <KEY>IMG = ...` line beside the other stage photos, then register it in `STIMG`.
 3. Insert the `STAGES` entry, with `img: "<key>"`, at the right position, and the `SEGS` entry (name, `queue`, `gap`, `max`) at the same index. The JSON field names match.
 4. Set `music` explicitly on any stage whose track should not follow its position (the default is `STAGE <n>`), and set `cap` (minimum word tier input) to fit the difficulty ramp.
@@ -143,6 +164,36 @@ Geometry model: enemy height grows linearly with feet y, from the zone height `h
 - The Control Room has lanes 1 and 2 only 11 px apart and enemies on the ladder and stairs
   sized as if on the floor; the Supply Corridor has lanes 1 and 2 18 px apart. Both have
   their attack line under the HUD.
+
+## Worktrees and commit pace
+
+Several people and their agents work here at once. These keep that cheap.
+
+- **The main checkout tracks `main` and stays clean.** Do not develop in it; use it
+  to fetch, review and create worktrees.
+- **One task, one branch, one worktree.** Start every task from fresh `main`:
+
+      git fetch origin
+      git worktree add ../dungeon-typer-wt/<branch> -b <branch> origin/main
+
+  Name branches `<type>/<short-topic>` (`feat/title-screen`, `fix/lobber-hitbox`),
+  matching the commit type. Work only inside that worktree and report its path.
+- **Commit small and often.** Commit each working step (one behaviour, one fix, one
+  doc section) with its checks passing, rather than one large commit at the end. Do
+  not leave work uncommitted at the end of a session: commit it, or say in the PR
+  what is unfinished.
+- **Push and open the PR early.** Push the branch after the first commit and open the
+  PR as a draft, so the others can see what is in flight and the preview deploys.
+  Mark it ready when the PR description has the tested SHA and preview URL.
+- **Keep branches short lived.** Aim to merge within a day or two. Before pushing more
+  work, merge `origin/main` into a branch that is behind, so conflicts stay small.
+  Do not rebase or force push a branch someone else may have pulled.
+- **Clean up after merge.** Remove the worktree (`git worktree remove <path>`) and
+  delete the branch locally and on the remote once its PR is merged or closed.
+  Never remove a worktree you did not create, or one with uncommitted work.
+- **Check before you start.** `git worktree list` and the open PRs show who is
+  working on what. Do not pick up a task that already has an open PR without asking
+  its author.
 
 ## PR ownership and live testing
 
