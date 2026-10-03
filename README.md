@@ -190,6 +190,7 @@ archive/                               older versions (v21, v31, v38, v47), kept
 tools/stage_mapper.py                  stage layout tool
 web/og.jpg                             link preview image for Discord, Slack and the like
 server/                                hosted score API (Cloudflare Worker) and D1 migrations
+relay/                                 GitHub webhook relay that streams PR events to agents
 scripts/, tests/                       host staging, the layout check and verification
 docs/HOSTING.md                        hosting, database setup and the playback loop
 .github/workflows/check-game.yml       checks on every PR

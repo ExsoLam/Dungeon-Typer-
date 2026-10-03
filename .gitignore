@@ -1,3 +1,4 @@
 .wrangler/
 .deploy/
 node_modules/
+.dev.vars
