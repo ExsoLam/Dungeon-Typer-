@@ -6,7 +6,7 @@ The game is one file, `typing_dungeon_v48.html`: engine, renderer, sound effects
 
 ## Play it
 
-**Online:** https://play.dtyper.workers.dev. Pick a name when the game opens and your full runs are saved to a leaderboard for each mode.
+**Online:** https://play.dtyper.workers.dev. Pick a name when the game opens and your runs are saved to leaderboards for each mode: one for full runs and one for each stage.
 
 **Offline:** keep `typing_dungeon_v48.html` and the `SOUNDS` folder side by side and open the HTML in a browser: double-click it, drag it into a browser window, or serve the folder with anything static:
 
@@ -51,7 +51,7 @@ Targeting: the first letter you type locks onto the monster whose word starts wi
 | normal | -25% | normal | fewer | 0.8 |
 | hard | full | normal | most | 1.0 |
 
-The stage row picks `ALL STAGES` (a full run) or a single stage for practice. Best scores are kept separately for each mode, difficulty and stage choice. Only full runs go on the hosted leaderboard.
+The stage row picks `ALL STAGES` (a full run) or a single stage for practice. Best scores are kept separately for each mode, difficulty and stage choice, and each stage has its own hosted leaderboard.
 
 ## How a run works
 
@@ -63,7 +63,7 @@ Five stages, one wave each:
 4. **THE COURTYARD**
 5. **THE CRYPT** (final boss: the ZOMBIE LORD)
 
-The weapon picker opens after the Control Room, before stage 3. A single-stage run opens it before that stage.
+A full run starts with the pistol, and the weapon picker opens after the Control Room, before stage 3. A single-stage run opens it before that stage.
 
 You start with 3 lives and 5 continues. A monster that reaches you costs a life; at zero lives the run ends and a continue resets you to 3 lives and costs 5 p. Each stage ends with a results parchment, and the run ends with a final score.
 
@@ -110,15 +110,15 @@ Final score is the stage scores plus 100 per life remaining (the results screen 
 
 ## Weapons
 
-| Weapon | Feel |
+| Weapon | Effect |
 | --- | --- |
-| Service pistol | The original. Short, loud, with a pixel muzzle flash |
-| Suppressed AR | Suppressor, rails, red dot and laser. Quiet thup, tiny flash, brass flying out |
-| Ray gun | Red and chrome retro blaster. Glowing teal core, a bolt and ring, a zap |
-| Double barrel | Two big flashes, a boom and rising smoke |
-| Crossbow | A bolt streaks away with a string twang |
+| Service pistol | The original, with `SOUNDS/GUNSHOT.mp3`. No effect |
+| Suppressed AR | Every 4th correct key trims a letter off the end of your target, so about 25% fewer keys per word |
+| Ray gun | Each hit sets your target alight for 1 s (renewed by further hits); a burning enemy loses a letter every 1/4 s, even after you switch target |
+| Double barrel | Every 4th correct key trims a letter off every other enemy near your target (the grenade blast radius) |
+| Crossbow | Every 4th correct key the bolt passes through and trims a letter off the nearest enemy behind your target |
 
-Every correct key fires the weapon, with recoil, a muzzle effect and a procedural shot. A wrong key or a key with no target fires nothing, and typing a prisoner's word frees them without a shot. Weapons are visual only: ranks, timing and scores are the same with every weapon.
+Every correct key fires the weapon, with recoil, a muzzle effect and a shot: `GUNSHOT.mp3` for the pistol, synthesised for the others (all about equally loud, the AR quieter). The 4th-key count runs across all targets. A trimmed letter flies off the word plate. If a trim leaves nothing to type, the word is finished: on your own target (or one you had started) it scores with a rank, otherwise it is a free kill worth base points only. Ranks only count the letters you typed yourself, so a trimmed word is not ranked easier. Bosses and prisoners are affected; the shotgun and crossbow skip bats.
 
 ## Enemies
 
@@ -137,12 +137,13 @@ Every correct key fires the weapon, with recoil, a muzzle effect and a procedura
 
 ## Sound
 
-Sound effects (shots, hits, armour clangs, explosions, fire, the heartbeat when something is close) are synthesised with Web Audio. Music is in `SOUNDS/`:
+Sound effects (hits, armour clangs, explosions, fire, the heartbeat when something is close) are synthesised with Web Audio. Music is in `SOUNDS/`:
 
 | File | Plays |
 | --- | --- |
 | `STAGE 1.mp3`, `STAGE 2.mp3`, `STAGE 3.mp3` | During a stage, looped. The Supply Corridor, Control Room and Bonfire Gate use `STAGE 1`, the Courtyard `STAGE 2`, the Crypt `STAGE 3` |
 | `STAGE END.mp3` | On each stage results screen and the mid-run weapon picker, looped |
+| `GUNSHOT.mp3` | The service pistol's shot (synthesised if the file is missing) |
 | `FINAL RESULTS.mp3` | On the final score screen, once |
 
 Music pauses with the game, drops to 40% on the game over screen, and fades out over half a second between tracks. A missing file is skipped silently.
@@ -152,11 +153,11 @@ Music pauses with the game, drops to 40% on the game over screen, and fades out 
 The hosted game saves scores to a Cloudflare D1 database through a Worker (`server/worker.mjs`).
 
 - The first time the hosted game opens it asks for a name (Esc plays as a guest). Press **N** on the title to change it and **S** on the title or final screen to open the leaderboard, which is drawn in the game itself.
-- Each mode has its own all-time board, showing each player's best full run. Tied scores share a rank, and the top 100 are shown. Single-stage runs are not submitted.
+- Each mode has six all-time boards: ALL STAGES for full runs, and one per stage for single-stage runs. Each shows every player's best run with the weapon used. Tied scores share a rank, and the top 100 are shown. On the leaderboard, Left / Right changes board and Tab changes mode; S opens the board for the title's stage choice.
 - Identity is a random token kept in your browser, so there is no login and no cross-device recovery. Names can be changed and need not be unique.
 - A failed save is queued in the browser and can be retried with R, including after a reload. Resubmitting the same run never creates a duplicate.
 - Scores are reported by the client, so this is a casual leaderboard rather than a cheat-proof one.
-- The boards show scoring version `v48-1`. Runs from the three-stage v21 game are kept in the database but not shown.
+- The boards show scoring version `v48-2`. Runs from older scoring versions are kept in the database but not shown.
 
 Production is `https://play.dtyper.workers.dev`. Every code PR gets its own preview at `https://pr-N.dtyper.workers.dev` with a separate database, so test scores never reach the production board. Setup, deployment and the testing loop are in [docs/HOSTING.md](docs/HOSTING.md).
 
@@ -203,7 +204,7 @@ docs/HOSTING.md                        hosting, database setup and the playback 
 - No build and no dependencies for the game itself. Checks live in `tests/` and `scripts/check-game.py` (see AGENTS.md for the commands). The game logic is deliberately DOM free (`G`, `tierFor`, `pickFrom`, `key`, `kill`, `update`), so it can be driven headlessly; the browser glue, including music and the score client, is at the bottom of the file behind a `typeof window` check.
 - Art is embedded as base64 data URIs (the zombie sprite sheet, the Axeman and Lobber atlases, the pistol and weapon sprites, and the five stage photos), which is why the file is about 3.8 MB. Editing art means replacing those strings.
 - Word lists and their par values are embedded in `WORDSET`, taken from the original game. They are not published anywhere else in the repo, so treat them as data for this game rather than something to extract.
-- Weapons live in the effects layer: the list is `WEAPONS` (engine side, so the picker is testable), `WEAPON_AT` sets where the picker opens in a full run, sprites are `PISTOL_SRC` and `WIMG.*`, and recoil and muzzle effects are in `WSTYLE`. To add a weapon, add a `WEAPONS` entry, a sound, a sprite and a `WSTYLE` entry.
+- Weapons: the list is `WEAPONS` (engine side: name, notes, sound, `fx` effect and colour), effects are `trimWord` and `weaponHit` with timings in `WFX`, `WEAPON_AT` sets where the picker opens in a full run, sprites are `PISTOL_SRC` and `WIMG.*`, recoil and muzzle effects are in `WSTYLE`, and shots are `snd.pistol/ar/ray/dbl/twang`. To add a weapon, add a `WEAPONS` entry, a sound, a sprite, a `WSTYLE` entry and its id in `WEAPON_IDS` in `server/worker.mjs`, and bump the scoring version.
 
 ## Provenance
 
