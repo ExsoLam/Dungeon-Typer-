@@ -125,21 +125,22 @@ const TYPES = {
 /* stages, one wave each (SEGS[i] is the wave of STAGES[i]). Per stage: a photo, zone -> lane paths in image pixels, masks for foreground objects,
    effects (fx: a built-in FX name, or data { glows: [[x, y, r, alpha]], flames: [[x, y, size]], fog: [y, alpha, span] }),
    optional cap (minimum word-tier input, sel_cap) and music (file name in SOUNDS, default "STAGE <n>").
+   id is the stage's leaderboard key; it must also be listed in STAGE_IDS in server/worker.mjs.
    A zone is (x, y, h) = feet position and enemy height (px) at the spawn point; heights grow linearly with feet y up to hend at the lanes (yend). */
 const STAGES = [
-  { name: "THE SUPPLY CORRIDOR", cap: 0, img: "stc", iw: 1408, ih: 768, xc: 795, yend: 764, hend: 656, lanes: [493, 755, 773], boss: "", fx: { glows: [[368, 71, 132, 0.28], [1012, 168, 56, 0.28], [814, 94, 130, 0.28], [677, 203, 36, 0.28]], flames: [], fog: null }, music: "STAGE 1", w: { zone1: 1, zone2: 1, zone3: 1 },
+  { name: "THE SUPPLY CORRIDOR", id: "corridor", cap: 0, img: "stc", iw: 1408, ih: 768, xc: 795, yend: 764, hend: 656, lanes: [493, 755, 773], boss: "", fx: { glows: [[368, 71, 132, 0.28], [1012, 168, 56, 0.28], [814, 94, 130, 0.28], [677, 203, 36, 0.28]], flames: [], fog: null }, music: "STAGE 1", w: { zone1: 1, zone2: 1, zone3: 1 },
     zones: { zone1: { x: 278, y: 600, h: 395, pref: [0] }, zone2: { x: 652, y: 405, h: 154, wp: [[739, 428]], pref: [1] }, zone3: { x: 988, y: 443, h: 199, wp: [[881, 479]], pref: [2] } },
     masks: [{ y: 597, poly: [[948, 240], [940, 401], [931, 396], [925, 527], [943, 537], [942, 546], [1015, 582], [1030, 597], [1030, 216]] }, { y: 763, poly: [[1030, 216], [1030, 597], [1191, 763], [1222, 161]] }, { y: 763, poly: [[0, 92], [287, 156], [326, 763], [4, 763]] }, { y: 587, poly: [[591, 376], [678, 379], [679, 523], [584, 587], [496, 569], [483, 405]] }, { y: 493, poly: [[671, 419], [702, 424], [702, 474], [678, 493]] }, { y: 410, poly: [[672, 229], [674, 379], [476, 391], [490, 90]] }] },
-  { name: "THE CONTROL ROOM", cap: 25, img: "stb", iw: 1024, ih: 559, xc: 512, yend: 532, hend: 201, lanes: [425, 512, 523], boss: "zone3", fx: { glows: [], flames: [], fog: null }, music: "STAGE 1", w: { zone1: 1, zone2: 1, zone3: 1 },
+  { name: "THE CONTROL ROOM", id: "control", cap: 25, img: "stb", iw: 1024, ih: 559, xc: 512, yend: 532, hend: 201, lanes: [425, 512, 523], boss: "zone3", fx: { glows: [], flames: [], fog: null }, music: "STAGE 1", w: { zone1: 1, zone2: 1, zone3: 1 },
     zones: { zone1: { x: 376, y: 163, h: 62, wp: [[378, 341]], pref: [0] }, zone2: { x: 642, y: 156, h: 58, wp: [[811, 329], [797, 427]], pref: [2] }, zone3: { x: 641, y: 337, h: 84, pref: [2] } },
     masks: [{ y: 458, poly: [[745, 335], [812, 330], [940, 338], [948, 455], [828, 458], [800, 428], [745, 400]] }] },
-  { name: "THE BONFIRE GATE", cap: 35, img: "gate", music: "STAGE 1", iw: 1376, ih: 768, xc: 930, yend: 606, hend: 285, lanes: [450, 960, 1090], boss: "gate", fx: "gate", w: { gate: 3, stairs: 3, arcade: 2 },
+  { name: "THE BONFIRE GATE", id: "gate", cap: 35, img: "gate", music: "STAGE 1", iw: 1376, ih: 768, xc: 930, yend: 606, hend: 285, lanes: [450, 960, 1090], boss: "gate", fx: "gate", w: { gate: 3, stairs: 3, arcade: 2 },
     zones: { gate: { x: 950, y: 548, h: 85, pref: [1, 2] }, stairs: { x: 655, y: 440, h: 105, wp: [[580, 598]], pref: [0] }, arcade: { x: 583, y: 432, h: 92, wp: [[620, 446], [570, 598]], pref: [0] } },
     masks: [{ y: 690, poly: [[600, 650], [640, 640], [655, 580], [670, 520], [700, 470], [735, 462], [765, 520], [790, 580], [812, 610], [865, 650], [868, 690], [602, 690]] }] },
-  { name: "THE COURTYARD", cap: 55, img: "clo", music: "STAGE 2", iw: 1376, ih: 768, xc: 930, yend: 612, hend: 300, lanes: [770, 930, 1090], boss: "gateway", fx: "clo", w: { gateway: 3, leftB: 2, leftD: 2, right: 2 },
+  { name: "THE COURTYARD", id: "courtyard", cap: 55, img: "clo", music: "STAGE 2", iw: 1376, ih: 768, xc: 930, yend: 612, hend: 300, lanes: [770, 930, 1090], boss: "gateway", fx: "clo", w: { gateway: 3, leftB: 2, leftD: 2, right: 2 },
     zones: { gateway: { x: 935, y: 523, h: 85, pref: [1, 0, 2] }, leftB: { x: 435, y: 538, h: 120, pref: [0, 1] }, leftD: { x: 715, y: 515, h: 85, pref: [0, 1] }, right: { x: 1135, y: 545, h: 120, pref: [2, 1] } },
     masks: [{ y: 594, poly: [[590, 312], [662, 308], [672, 350], [668, 430], [704, 500], [722, 566], [692, 596], [556, 596], [556, 520], [588, 512], [588, 420]] }] },
-  { name: "THE CRYPT", cap: 75, img: "cry", music: "STAGE 3", iw: 1024, ih: 572, xc: 660, yend: 462, hend: 228, lanes: [470, 600, 730], boss: "nearR", fx: "torch", w: { torch: 3, nearR: 3, center: 1, farL: 1 },
+  { name: "THE CRYPT", id: "crypt", cap: 75, img: "cry", music: "STAGE 3", iw: 1024, ih: 572, xc: 660, yend: 462, hend: 228, lanes: [470, 600, 730], boss: "nearR", fx: "torch", w: { torch: 3, nearR: 3, center: 1, farL: 1 },
     zones: { farL: { x: 375, y: 340, h: 90, wp: [[632, 352]], pref: [0, 1, 2] }, center: { x: 513, y: 336, h: 85, wp: [[622, 356]], pref: [1, 0, 2] }, torch: { x: 666, y: 338, h: 87, pref: [1, 2, 0] }, nearR: { x: 854, y: 372, h: 130, wp: [[772, 382]], pref: [2, 1, 0] } },
     masks: [{ y: 448, poly: [[272, 356], [300, 345], [480, 338], [498, 350], [502, 392], [512, 424], [512, 450], [272, 450]] }, { y: 398, poly: [[480, 320], [520, 316], [592, 318], [592, 352], [580, 400], [540, 402], [500, 396], [480, 350]] }, { y: 400, poly: [[795, 352], [1024, 352], [1024, 560], [795, 560]] }] }
 ];
@@ -155,20 +156,21 @@ function pickZone(w) { const t = STAGES[w].w, ks = Object.keys(t); let r = Math.
 
 /* ---- game state (DOM-free so it can be tested headless) ---- */
 const G = { level: -1, diff: "hard", menu: 0, mode: "strict", state: "title", seg: 0, clock: 0, p: 3, acc: 0, calm: 0, lives: 3, continues: 5, cap: 0, enemies: [], queue: [], nextSpawn: 0,
-  lock: null, msgs: [], st: null, results: [], flash: 0, best: 0, final: null, tier: 0, buf: null, branch: null, doors: null, daggers: [], blasts: [], burn: false, weapon: "pistol", weaponThen: "",
-  net: { hosted: false, name: "", draft: "", guest: false, busy: false, loading: false, err: "", status: "", retry: false, board: [], best: 0, boardMode: "" } };
+  lock: null, msgs: [], st: null, results: [], flash: 0, best: 0, final: null, tier: 0, buf: null, branch: null, doors: null, daggers: [], blasts: [], burn: false, weapon: "pistol", weaponThen: "", wn: 0,
+  net: { hosted: false, name: "", draft: "", guest: false, busy: false, loading: false, err: "", status: "", retry: false, board: [], best: 0, boardKey: "", boardStage: -1 } };
 const clampP = v => Math.max(0, Math.min(15, v));
 function msg(s) { G.msgs.push(s); if (G.msgs.length > 2) G.msgs.shift(); }
 function bumpP(d) { G.p = clampP(G.p + d); }
 function newStats() { return { words: 0, ranks: [0,0,0,0,0], rankPts: 0, base: 0, keys: 0, wrong: 0, chars: 0, secs: 0, rescued: 0, lost: 0, bonus: 0 }; }
 
 function newGame() {
+  if (G.level < 0) G.weapon = "pistol";   // a full run starts with the pistol; the picker before stage WEAPON_AT + 1 changes it
   G.lives = 3; G.continues = 5; G.p = 3; G.acc = 0; G.calm = 0; G.results = []; G.final = null; G.cap = 0; G.clock = 0; G.branch = null; G.doors = null;
   startSegment(Math.max(0, G.level));   // level select: -1 = start at stage 1 and play all three, else just that stage
 }
 function startSegment(i) {
   if (typeof clearFx === "function") clearFx();
-  G.seg = i; G.queue = SEGS[i].queue.split(" "); G.enemies = []; G.lock = null; G.daggers = []; G.blasts = []; G.burn = false; G.nextSpawn = G.clock + 2.8;
+  G.seg = i; G.queue = SEGS[i].queue.split(" "); G.enemies = []; G.lock = null; G.daggers = []; G.blasts = []; G.burn = false; G.wn = 0; G.nextSpawn = G.clock + 2.8;
   G.st = newStats();   // stats per stage
   G.cap = STAGES[i].cap || 0; G.state = "play"; G.wave = { name: SEGS[i].name, t0: G.clock }; msg("Wave " + (i + 1) + ": " + SEGS[i].name);
 }
@@ -201,16 +203,24 @@ function loseLife() {
   G.lives--; bumpP(-2); hook("damage"); G.calm = 0; G.flash = 0.35; G.st.lost++; msg("You are hit! p-2");
   if (G.lives <= 0) { G.state = "over"; msg("You fall..."); }
 }
-function kill(e) {
-  if (G.burn) { G.burn = false; msg("Fire out"); hook("douse"); }   // finishing a target clean while on fire puts it out
-  const secs = e.firstT === null ? 0 : e.lastT - e.firstT, rk = rankOf(secs, e.value), R = RANKS[rk], s = G.st;
-  hook("kill", { e, rk }); s.words++; s.ranks[rk]++; s.rankPts += R.pts; s.base += 15; s.bonus += ((1 + 0.1 * G.p) * MODES[G.mode].mult * DIFFS[G.diff].mult - 1) * (R.pts + 15); s.chars += e.word.length - 1; s.secs += secs;
-  G.acc += R.acc; if (G.acc >= 100) { G.acc = 0; bumpP(1); msg("Accumulator full: p+1"); }
-  if (TYPES[e.type].citizen) { s.rescued++; msg("Prisoner rescued! +150"); }
-  else msg(e.word.slice(0, 28) + " -> rank " + R.k + " +" + R.pts);
+function kill(e, free) {   // free: the word was finished by a weapon effect, not your keys (base points only, no rank)
+  const s = G.st;
+  if (free) {
+    s.base += 15; s.bonus += ((1 + 0.1 * G.p) * MODES[G.mode].mult * DIFFS[G.diff].mult - 1) * 15; hook("kill", { e, rk: 4, free: true });
+    if (TYPES[e.type].citizen) { s.rescued++; msg("Prisoner freed! +150"); } else msg("Weapon kill +15");
+  } else {
+    if (G.burn) { G.burn = false; msg("Fire out"); hook("douse"); }   // finishing a target clean while on fire puts it out
+    const full = e.word.length + (e.trim || 0), val = e.value * e.word.length / Math.max(1, full);   // a trimmed word is ranked on the share you typed
+    const secs = e.firstT === null ? 0 : e.lastT - e.firstT, rk = rankOf(secs, val), R = RANKS[rk];
+    hook("kill", { e, rk }); s.words++; s.ranks[rk]++; s.rankPts += R.pts; s.base += 15; s.bonus += ((1 + 0.1 * G.p) * MODES[G.mode].mult * DIFFS[G.diff].mult - 1) * (R.pts + 15); s.chars += e.word.length - 1; s.secs += secs;
+    G.acc += R.acc; if (G.acc >= 100) { G.acc = 0; bumpP(1); msg("Accumulator full: p+1"); }
+    if (TYPES[e.type].citizen) { s.rescued++; msg("Prisoner rescued! +150"); }
+    else msg(e.word.slice(0, 28) + " -> rank " + R.k + " +" + R.pts);
+  }
+  e.trim = 0;
   if (TYPES[e.type].hybrid && e.stage < 2) {   // axes go first, then the armor, then it dies
     e.stage++; e.axes = false; e.stagger = e.stagDur = e.stage === 1 ? 0.95 : 1.0; e.trans = e.stage === 1 ? "lose" : "bust";
-    const o = pickFrom(POOLS[e.pi], "P" + e.pi, G.enemies.filter(x => x !== e)); e.word = o.w; e.value = o.v; e.idx = 0; e.firstT = null;
+    const o = pickFrom(POOLS[e.pi], "P" + e.pi, G.enemies.filter(x => x !== e)); e.word = o.w; e.value = o.v; e.idx = 0; e.firstT = null; e.trim = 0;
     e.life = (G.clock - e.born) + (4.5 + e.value / 30 * 3.0) * DIFFS[G.diff].time; G.lock = null; hook("hybrid", e); return;
   }
   if (e.armor && !e.broken) {   // armor bursts, the zombie staggers back, then a second target appears
@@ -295,6 +305,11 @@ function update(dt) {
   if (G.queue.length && G.clock >= G.nextSpawn && G.enemies.filter(x => !TYPES[x.type].bat).length < sg.max && spawn(G.queue[0])) {
     G.queue.shift(); G.nextSpawn = G.clock + sg.gap / DIFFS[G.diff].rate;
   }
+  for (const e of G.enemies.slice()) if (e.fire > 0) {   // ray gun: a burning enemy loses a letter every WFX.tick s
+    e.fire -= dt; e.fireT = (e.fireT || 0) + dt;
+    while (e.fireT >= WFX.tick && G.enemies.includes(e)) { e.fireT -= WFX.tick; trimWord(e); }
+    if (!(e.fire > 0)) e.fireT = 0;
+  }
   for (const e of G.enemies.slice()) {
     if (e.stagger > 0) { e.stagger -= dt; e.born += dt; }
     if (e._cool > 0) e._cool -= dt;
@@ -341,19 +356,47 @@ function doorKey(k) {
     if (d.idx[i] >= d.words[i].w.length) { d.chosen = i; d.open = 0; msg(BRANCH[d.ids[i]].name + " it is..."); hook("door"); }
   } else G.st.wrong++;
 }
-/* ---- weapons: looks only. Scoring, timing and ranks never read G.weapon. The picker opens before a single-stage run and,
+/* ---- weapons: each has an effect (fx, see WFX below) that trims letters; ranks only count letters you type. The picker opens before a single-stage run and,
    in a full run, before stage WEAPON_AT + 1 (after the Control Room boss). ---- */
 const WEAPONS = [
-  { id: "pistol", name: "SERVICE PISTOL", note: "Reliable. Loud. Yours.", snd: "pistol" },
-  { id: "ar", name: "SUPPRESSED AR", note: "Whisper quiet. Fully kitted.", snd: "ar" },
-  { id: "ray", name: "RAY GUN", note: "Atomic. Slightly illegal.", snd: "ray" },
-  { id: "shotgun", name: "DOUBLE BARREL", note: "Subtle it is not.", snd: "dbl" },
-  { id: "xbow", name: "CROSSBOW", note: "Silent. Medieval. Efficient.", snd: "twang" }
+  { id: "pistol", name: "SERVICE PISTOL", note: ["No tricks.", "The baseline."], snd: "pistol", fx: "", col: "#ffd27a" },
+  { id: "ar", name: "SUPPRESSED AR", note: ["Every 4th key trims", "a letter off your target."], snd: "ar", fx: "trim", col: "#9fd0ff" },
+  { id: "ray", name: "RAY GUN", note: ["Sets your target alight:", "a letter burns off every 1/4 s."], snd: "ray", fx: "burn", col: "#4ff0e0" },
+  { id: "shotgun", name: "DOUBLE BARREL", note: ["Every 4th key trims a", "letter off everyone nearby."], snd: "dbl", fx: "spread", col: "#ffb050" },
+  { id: "xbow", name: "CROSSBOW", note: ["Every 4th key the bolt", "trims the enemy behind."], snd: "twang", fx: "pierce", col: "#d8e0a0" }
 ];
+/* ---- weapon effects. A trim takes the last character off a word. If that leaves nothing to type, the word is finished:
+   by your own keys (your target, or one you had started) it scores with a rank measured on the letters you typed,
+   otherwise it is a free kill. Every WFX.every-th correct key (any target) fires the AR, shotgun and crossbow effects. */
+const WFX = { every: 4, burn: 1.0, tick: 0.25, half: 55 };
+function trimWord(e) {
+  if (!G.enemies.includes(e) || e.stagger > 0) return;
+  const ch = e.word[e.word.length - 1]; e.word = e.word.slice(0, -1).replace(/ +$/, ""); e.trim = (e.trim || 0) + 1;
+  if (e.idx > e.word.length) e.idx = e.word.length;
+  hook("trim", { e, ch });
+  if (e.idx >= e.word.length) kill(e, !(e === G.lock || e.idx > 0));
+}
+function weaponHit(e, P) {   // after each correct key; P is the target's position before it may have died
+  const fx = weaponDef().fx, nth = ++G.wn % WFX.every === 0, alive = G.enemies.includes(e);
+  if (fx === "burn" && alive && !TYPES[e.type].citizen) e.fire = WFX.burn;
+  if (!nth) return;
+  if (fx === "trim" && alive) trimWord(e);
+  else if (fx === "spread") G.enemies.slice().forEach(x => {
+    if (x === e || TYPES[x.type].bat) return; const Q = pos(x);
+    if (Math.abs(Q.x - P.x) < LOB.rx * P.s * P.k && Math.abs(Q.y - P.y) < LOB.ry * P.s * P.k + 20) trimWord(x);
+  });
+  else if (fx === "pierce") {
+    const hit = G.enemies.filter(x => x !== e && !TYPES[x.type].bat).map(x => [x, pos(x)])
+      .filter(q => q[1].y < P.y && Math.abs(q[1].x - P.x) < WFX.half * (P.s * P.k + q[1].s * q[1].k)).sort((a, b) => b[1].y - a[1].y)[0];
+    if (hit) { hook("pierce", { x0: P.x, y0: P.y - 150 * P.s * P.k, x1: hit[1].x, y1: hit[1].y - 150 * hit[1].s * hit[1].k }); trimWord(hit[0]); }
+  }
+}
 const WEAPON_AT = 2;
 const weaponDef = () => WEAPONS.find(w => w.id === G.weapon) || WEAPONS[0];
 function setWeapon(i) { G.weapon = WEAPONS[(i + WEAPONS.length) % WEAPONS.length].id; hook("weapon", G.weapon); }
-function openScores(from) { G.back = from; G.state = "scores"; hook("loadBoard"); }
+const boardId = i => i < 0 ? "all" : STAGES[i].id;   // leaderboards: "all" for full runs, else a stage id
+const boardName = i => i < 0 ? "ALL STAGES" : (i + 1) + "  " + STAGES[i].name;
+function openScores(from) { G.back = from; G.net.boardStage = G.level; G.state = "scores"; hook("loadBoard"); }
 function nameKey(k) {
   const N = G.net;
   if (N.busy) return;
@@ -388,7 +431,8 @@ function key(k) {
   if (G.state === "rules") { G.state = "title"; return; }
   if (G.state === "name") { nameKey(k); return; }
   if (G.state === "scores") {
-    if (k === "Tab" || k.indexOf("Arrow") === 0) setMode(G.mode === "strict" ? "original" : "strict");
+    if (k === "Tab" || k === "ArrowUp" || k === "ArrowDown") setMode(G.mode === "strict" ? "original" : "strict");
+    else if (k === "ArrowLeft" || k === "ArrowRight") { const n = STAGES.length + 1; G.net.boardStage = (G.net.boardStage + 1 + (k === "ArrowRight" ? 1 : -1) + n) % n - 1; hook("loadBoard"); }
     else if (k === "Escape" || k === "Enter") G.state = G.back || "title";
     return;
   }
@@ -425,7 +469,9 @@ function key(k) {
     if (e.firstT === null) e.firstT = G.clock;
     e.lastT = G.clock; e.idx++; hook("hit", e);
     while (!CFG.SPACES && e.word[e.idx] === " ") e.idx++;
+    const P = pos(e);
     if (e.idx >= e.word.length) kill(e);
+    weaponHit(e, P);
   } else {
     G.st.wrong++; hook("miss", e);
     if (G.burn) { G.burn = false; msg("You burn!"); hook("burn"); loseLife(); if (G.state === "over") return; }   // on fire: a typo costs another life
@@ -765,6 +811,15 @@ const snd = (() => {
   function env(g, t, a, peak, dur) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); }
   function tone(f0, f1, dur, type, peak) { if (!ac) return; const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain(); o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur); env(g, t, 0.01, peak, dur); o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05); }
   function puff(dur, cutoff, peak) { if (!ac) return; const t = ac.currentTime, s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = noiseBuf(); f.type = "lowpass"; f.frequency.value = cutoff; env(g, t, 0.005, peak, dur); s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t + dur + 0.05); }
+  const curves = {};
+  function wshot(parts, pk, drive) {   // pk: the voices' raw output peak (measured), so the shaper sees about +-1
+    if (!ac) return; const t = ac.currentTime, bus = ac.createGain(), ws = ac.createWaveShaper(), out = ac.createGain();
+    if (!curves[drive]) { const n = 1024, cv = new Float32Array(n); for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; cv[i] = Math.tanh(drive * x) / Math.tanh(drive); } curves[drive] = cv; }
+    ws.curve = curves[drive]; ws.oversample = "4x"; bus.gain.value = 0.55 / pk; out.gain.value = 0.85 / 0.55; bus.connect(ws); ws.connect(out); out.connect(master);
+    parts.forEach(p => p(bus, t));
+  }
+  const vT = (f0, f1, dur, type, peak, off = 0) => (d, t0) => { const t = t0 + off, o = ac.createOscillator(), g = ac.createGain(); o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur); env(g, t, 0.01, peak, dur); o.connect(g); g.connect(d); o.start(t); o.stop(t + dur + 0.05); };
+  const vN = (dur, kind, freq, q, peak, off = 0) => (d, t0) => { const t = t0 + off, s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = noiseBuf(); f.type = kind; f.frequency.value = freq; f.Q.value = q; env(g, t, kind === "lowpass" ? 0.005 : 0.004, peak, dur); s.connect(f); f.connect(g); g.connect(d); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.05); };
   // armor break: clank with a cling. Two plate hits 35 ms apart (300 / 355 Hz bases). Per hit: six damped body modes (ratios 1..5.2,
   // 45-60 ms) under seven bright ringing modes (ratios 7.1..20.5 = ~2.1-7.3 kHz, 90-200 ms), 15 ms noise strike at 4.5 kHz;
   // normalized (/3.1) into a tanh(2x) shaper, out at 0.85 peak. ~-3.5 LUFS(100 ms) vs gunshot -7.7.
@@ -803,7 +858,7 @@ const snd = (() => {
     hit() { tone(450, 250, 0.05, "square", 0.681); }, miss() { tone(140, 90, 0.09, "sawtooth", 2.42); },
     kill() { tone(130, 45, 0.28, "sine", 1.35); puff(0.25, 900, 1.15); }, hurt() { tone(70, 30, 0.5, "sine", 1.58); puff(0.4, 600, 1.32); },
     growl() { tone(90, 55, 0.55, "sawtooth", 1.66); }, bat() { puff(0.6, 3000, 1.8); tone(1800, 2600, 0.15, "sine", 0.515); }, door() { tone(95, 55, 0.9, "sawtooth", 1.44); puff(0.8, 500, 1.72); },
-    armor() { clang([[0, 300, 1.0], [0.035, 355, 0.7]], 1); },
+    armor() { clang([[0, 300, 1.0], [0.035, 355, 0.7]], 0.5); },   // 6 dB under its first level
     boom(L) {   // crack + swept low-passed noise roar + sub thump; levels set against GUNSHOT.mp3 (about -7.7 LUFS at L = 1, peaks caught by the limiter)
       if (!ac) return; const t = ac.currentTime, s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
       s.buffer = noiseBuf(); s.loop = true; f.type = "lowpass"; f.frequency.setValueAtTime(4000, t); f.frequency.exponentialRampToValueAtTime(180, t + 0.9);
@@ -816,14 +871,16 @@ const snd = (() => {
     ignite() { puff(0.7, 1200, 1.6); tone(110, 60, 0.6, "sawtooth", 0.8); },
     crackle() { puff(0.03, 3500, 0.45); },
     douse() { puff(0.6, 5500, 0.9); },
-    pistol() { puff(0.075, 2800, 0.22); tone(105, 38, 0.11, "triangle", 0.17); },
-    ar() { puff(0.03, 1400, 0.06); tone(170, 70, 0.045, "triangle", 0.07); tone(1100, 700, 0.02, "square", 0.015); },
-    ray() { tone(1500, 240, 0.2, "sawtooth", 0.06); tone(2300, 520, 0.14, "sine", 0.05); puff(0.05, 6000, 0.04); },
-    twang() { tone(240, 80, 0.14, "triangle", 0.2); tone(1500, 650, 0.07, "square", 0.04); puff(0.05, 3500, 0.07); },
-    dbl() { puff(0.24, 1700, 0.42); tone(85, 26, 0.3, "triangle", 0.34); },
+    // weapon shots: layered voices into a tanh shaper (wshot), levels measured offline (max 100 ms K-weighted loudness)
+    // against GUNSHOT.mp3 at volume 0.5 (about -7.7 LUFS); the AR sits about 6 dB under, every shot peaks at 0.85.
+    pistol() { wshot([vN(0.075, "lowpass", 2800, 1, 1.0), vT(105, 38, 0.11, "triangle", 0.77)], 0.475, 3); },   // fallback when GUNSHOT.mp3 is missing
+    ar() { wshot([vN(0.05, "bandpass", 1300, 1.2, 1.0), vT(150, 60, 0.06, "sine", 0.8), vT(3200, 2200, 0.012, "square", 0.25), vN(0.025, "bandpass", 2600, 4, 0.5, 0.045)], 0.465, 2); },
+    ray() { wshot([vT(1900, 180, 0.22, "sawtooth", 0.5), vT(2900, 420, 0.16, "sine", 0.6), vT(110, 108, 0.25, "sine", 0.5), vN(0.04, "highpass", 5000, 1, 0.3)], 0.841, 3); },
+    dbl() { wshot([vN(0.35, "lowpass", 2200, 1, 1.0), vT(68, 28, 0.35, "sine", 1.0), vN(0.02, "bandpass", 4500, 2, 0.35, 0.04), vN(0.02, "bandpass", 4500, 2, 0.35, 0.075), vN(0.02, "bandpass", 4500, 2, 0.35, 0.115)], 0.652, 2.5); },
+    twang() { wshot([vT(196, 186, 0.35, "triangle", 0.9), vT(392, 370, 0.25, "sine", 0.4), vT(1250, 900, 0.03, "square", 0.2), vN(0.22, "bandpass", 1500, 0.8, 0.35, 0.03)], 0.609, 2); },
     pin() { tone(2600, 2000, 0.03, "square", 0.25); setTimeout(() => tone(1800, 1400, 0.05, "triangle", 0.35), 90); },
     whoosh() { puff(0.3, 1800, 0.9); },
-    plink() { clang([[0, 420 + Math.random() * 230, 1.0]], 0.316); }, throw() { puff(0.35, 2500, 2.54); tone(700, 1500, 0.3, "triangle", 0.761); },
+    plink() { clang([[0, 420 + Math.random() * 230, 1.0]], 0.158); }, throw() { puff(0.35, 2500, 2.54); tone(700, 1500, 0.3, "triangle", 0.761); },
     tick(dt, danger) { if (!ac || !danger) { hb = 0; return; } hb -= dt; if (hb <= 0) { hb = 0.62; tone(58, 40, 0.14, "sine", 1.97); setTimeout(() => tone(52, 38, 0.16, "sine", 1.47), 170); } }
   };
 })();
@@ -847,13 +904,14 @@ const music = (() => {
   }
   function play(a) { try { const p = a.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
   function stopNow(a) { try { a.pause(); a.currentTime = 0; } catch (e) {} }
-  const SHOT_VOL = 0.5; let shotEl = null;
+  const SHOT_VOL = 0.5; let shotEl = null, shotBad = typeof Audio === "undefined";
   return {
     arm() { armed = true; },
     mute(m) { muted = m; for (const k in els) els[k].muted = m; if (shotEl) shotEl.muted = m; },
-    shot() {
-      if (!shotEl) { shotEl = new Audio("SOUNDS/GUNSHOT.mp3"); shotEl.preload = "auto"; shotEl.volume = SHOT_VOL; shotEl.addEventListener("error", () => {}); }
-      shotEl.muted = muted; try { shotEl.pause(); shotEl.currentTime = 0; } catch (e) {} play(shotEl);
+    shot() {   // pistol: SOUNDS/GUNSHOT.mp3, restarted on each shot; false when it cannot play, so the caller synthesises one
+      if (shotBad) return false;
+      if (!shotEl) { shotEl = new Audio("SOUNDS/GUNSHOT.mp3"); shotEl.preload = "auto"; shotEl.volume = SHOT_VOL; shotEl.addEventListener("error", () => { shotBad = true; }); }
+      shotEl.muted = muted; try { shotEl.pause(); shotEl.currentTime = 0; } catch (e) {} play(shotEl); return true;
     },
     sync(dt) {
       if (!armed) return;
@@ -874,8 +932,8 @@ const music = (() => {
 })();
 /* ---- effects (driven by hooks from the game logic) ---- */
 let NOW = 0, shake = 0, redFlash = 0, BG = null;
-const parts = [], deaths = [], floats = [], lens = [], stains = [], drips = [], bats = [], chunks = [], booms = [], fires = []; let nextDrip = 1, nextBat = 7, pistolT = -9, pistolShot = 0;
-function clearFx() { [parts, deaths, floats, lens, stains, drips, bats, chunks, booms, fires].forEach(a => { a.length = 0; }); pistolT = -9; pistolShot = 0; }
+const parts = [], deaths = [], floats = [], lens = [], stains = [], drips = [], bats = [], chunks = [], booms = [], fires = [], bolts = []; let nextDrip = 1, nextBat = 7, pistolT = -9, pistolShot = 0;
+function clearFx() { [parts, deaths, floats, lens, stains, drips, bats, chunks, booms, fires, bolts].forEach(a => { a.length = 0; }); pistolT = -9; pistolShot = 0; }
 function burst(x, y, n, cols, sp, life) { for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, v = sp * (0.3 + Math.random()); parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - sp * 0.5, life: life * (0.6 + Math.random() * 0.6), age: 0, col: cols[i % cols.length], sz: 1.5 + Math.random() * 2 }); } }
 function pos(e) {
   const hold = e.hold || 0, u = Math.max(0, Math.min(0.999, (G.clock - e.born - hold) / (e.life - hold))), s = 1 / (1 + 6 * (1 - u));
@@ -951,6 +1009,14 @@ function drawGrenades(c) {
   });
 }
 hooks.lob = e => snd.pin();
+hooks.trim = o => { const P = pos(o.e), sc = P.s * P.k, col = weaponDef().col; floats.push({ txt: o.ch === " " ? "_" : o.ch, x: P.x + 40 + 30 * sc, y: P.y - 300 * sc, t0: NOW, col }); burst(P.x + 30 * sc, P.y - 290 * sc, 5, [col, "#ffffff"], 160, 0.35); };
+hooks.pierce = o => bolts.push({ ...o, t0: NOW });
+function drawWeaponFx(c) {
+  G.enemies.forEach(e => { if (!(e.fire > 0)) return; const P = pos(e), sc = P.s * P.k;   // ray-gun fire on the body
+    c.save(); c.globalCompositeOperation = "lighter"; for (let i = -1; i <= 1; i++) tongues(c, P.x + i * 22 * sc, P.y - (90 + 40 * Math.abs(i)) * sc, 3, 26 * sc + 4, 22 * sc + 3, 7 * sc + 2, 6 * sc + 2); c.restore(); });
+  for (let i = bolts.length - 1; i >= 0; i--) { const b = bolts[i], a = 1 - (NOW - b.t0) / 0.25; if (a <= 0) { bolts.splice(i, 1); continue; }
+    c.save(); c.strokeStyle = "rgba(230,235,190," + a + ")"; c.lineWidth = 2.5; c.beginPath(); c.moveTo(b.x0, b.y0); c.lineTo(b.x1, b.y1); c.stroke(); c.restore(); }
+}
 hooks.cue = e => snd.cue();
 hooks.ignite = () => { snd.ignite(); redFlash = Math.max(redFlash, 0.4); };
 hooks.burn = () => { snd.ignite(); shake = Math.max(shake, 0.3); };
@@ -985,7 +1051,7 @@ hooks.kill = o => {
     if (!isBat) stains.push({ x: P.x, y: P.y, s: P.s * P.k, t0: NOW });
     if (P.u > 0.7) for (let i = 0; i < 3; i++) lens.push({ x: 140 + Math.random() * 680, y: 60 + Math.random() * 300, r: 20 + Math.random() * 35, t0: NOW });
   }
-  floats.push({ txt: o.blast ? "+15" : RANKS[o.rk].k, x: P.x, y: P.y - 250 * P.s * P.k, t0: NOW, col: ["#8fb08a", "#8aa6bf", "#c9a24a", "#c07a3a", "#b04a3a"][o.rk] });
+  floats.push({ txt: o.blast || o.free ? "+15" : RANKS[o.rk].k, x: P.x, y: P.y - 250 * P.s * P.k, t0: NOW, col: ["#8fb08a", "#8aa6bf", "#c9a24a", "#c07a3a", "#b04a3a"][o.rk] });
   snd.kill();
 };
 function drawDaggers(c) {
@@ -1009,7 +1075,7 @@ const PISTOL_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABOYAAATmCAYAAA
 const PISTOL_VIEW = { x: 170, y: 194, w: 952, h: 1006, sightX: 458 };
 const PISTOL_IMG = typeof Image === "undefined" ? null : new Image();
 if (PISTOL_IMG) PISTOL_IMG.src = PISTOL_SRC;
-function shootPistol() { pistolT = NOW; pistolShot++; snd[weaponDef().snd](); }
+function shootPistol() { pistolT = NOW; pistolShot++; const w = weaponDef(); if (w.id !== "pistol" || !music.shot()) snd[w.snd](); }   // pistol: SOUNDS/GUNSHOT.mp3
 const FLASH_PIX = [
   ".........r..........", ".........rr.........", "........roo.........", "........roy.........",
   ".......royyr........", "..r....royyor.......", "..rr..royyyor.......", "..ror.roywyyr..r....",
@@ -1253,15 +1319,15 @@ function screens(c) {
     { const dy = Math.min(36, 100 / Math.max(1, G.results.length - 1)), fs = dy < 26 ? 16 : 21; G.results.forEach((r, i) => { txt(c, "Stage " + ((r.idx === undefined ? i : r.idx) + 1) + "  " + r.name, 220, 170 + i * dy, fs, ink, "left"); txt(c, r.total + " pts", 740, 170 + i * dy, fs, ink, "right"); }); }
     txt(c, "Life bonus (placeholder)", 220, 290, 20, ink, "left"); txt(c, G.final.bonus + " pts", 740, 290, 20, ink, "right");
     txt(c, "FINAL SCORE  " + G.final.total, W / 2, 360, 40, "#7a1f12", "center", true); txt(c, "best " + G.best + "     " + G.diff.toUpperCase() + (G.mode === "original" ? " / ORIGINAL RULES" : "") + (G.level >= 0 ? " / STAGE " + (G.level + 1) + " ONLY" : ""), W / 2, 394, 20, ink);
-    if (G.net.hosted) txt(c, G.level >= 0 ? "Single-stage runs are not saved to the leaderboard." : G.net.status, W / 2, 420, 17, G.net.retry ? "#8a1d12" : ink);
+    if (G.net.hosted) txt(c, G.net.status, W / 2, 420, 17, G.net.retry ? "#8a1d12" : ink);
     txt(c, "ENTER for the title" + (G.net.hosted ? "      S  leaderboard" : "") + (G.net.retry ? "      R  retry save" : ""), W / 2, 452, 18, ink);
   } else if (G.state === "weapon") {
-    dark(0.7); title(c, "CHOOSE YOUR ARMS", 64, 44, "#b8985a"); txt(c, G.weaponThen === "seg" ? "Next: stage " + (G.seg + 2) + "  " + STAGES[G.seg + 1].name + ".   Looks only. Every weapon scores the same." : "Looks only. Every weapon scores the same.", W / 2, 100, 16, "#c9b98a");
+    dark(0.7); title(c, "CHOOSE YOUR ARMS", 64, 44, "#b8985a"); txt(c, (G.weaponThen === "seg" ? "Next: stage " + (G.seg + 2) + "  " + STAGES[G.seg + 1].name + ".   " : "") + "Ranks only count the letters you type yourself.", W / 2, 100, 16, "#c9b98a");
     WEAPONS.forEach((w, i) => {
       const sel = w.id === G.weapon, x = 40 + i * 178, bob = sel ? Math.sin(NOW * 3) * 3 : 0;
       c.save(); c.globalAlpha = sel ? 1 : 0.55; rr(c, x, 130, 168, 310, 8); c.fillStyle = "rgba(22,17,10,.88)"; c.fill(); c.lineWidth = sel ? 3 : 1; c.strokeStyle = sel ? "#dcb457" : "#5a4a2a"; if (sel) { c.shadowColor = "#dcb457"; c.shadowBlur = 18; } c.stroke(); c.restore();
       c.save(); c.globalAlpha = sel ? 1 : 0.6; c.beginPath(); c.rect(x + 2, 132, 164, 270); c.clip(); weaponIcon(c, w.id, x + 84, 392 + bob, 230, 156); c.restore();
-      txt(c, String(i + 1), x + 16, 150, 17, "#b8985a", "left", true); txt(c, w.name, x + 84, 414, 16, sel ? "#ffd27a" : "#c9b98a", "center", true); txt(c, w.note, x + 84, 432, 12, "#a8987a");
+      txt(c, String(i + 1), x + 16, 150, 17, "#b8985a", "left", true); txt(c, w.name, x + 84, 406, 16, sel ? "#ffd27a" : "#c9b98a", "center", true); w.note.forEach((l, j) => txt(c, l, x + 84, 422 + j * 13, 11, sel ? "#e0d2a8" : "#a8987a"));
     });
     txt(c, "LEFT / RIGHT or 1 to " + WEAPONS.length + " to choose      ENTER to " + (G.weaponThen === "seg" ? "go on" : "defend the keep") + (G.weaponThen === "seg" ? "" : "      ESC back"), W / 2, 488, 17, "#e8e2d0");
   } else if (G.state === "name") {
@@ -1273,17 +1339,17 @@ function screens(c) {
     txt(c, "ENTER to confirm      ESC to " + (N.name ? "cancel" : "play as a guest"), W / 2, 372, 18, ink);
   } else if (G.state === "scores") {
     const N = G.net, st = G.mode === "strict", ink = "#2b1d0e"; dark(0.6); parch(c, 150, 28, 660, 484);
-    txt(c, "DUNGEON RECORDS", W / 2, 66, 34, "#7a1f12", "center", true);
-    txt(c, st ? "[ STRICT ]" : "STRICT", 400, 104, st ? 21 : 17, st ? "#7a1f12" : "#5a4a2a", "right", true); txt(c, !st ? "[ ORIGINAL ]" : "ORIGINAL", 560, 104, !st ? 21 : 17, !st ? "#7a1f12" : "#5a4a2a", "left", true);
-    const ready = N.boardMode === G.mode && !N.loading;
+    txt(c, "DUNGEON RECORDS", W / 2, 58, 32, "#7a1f12", "center", true); txt(c, "<  " + boardName(N.boardStage) + "  >", W / 2, 82, 16, ink, "center", true);
+    txt(c, st ? "[ STRICT ]" : "STRICT", 400, 108, st ? 21 : 17, st ? "#7a1f12" : "#5a4a2a", "right", true); txt(c, !st ? "[ ORIGINAL ]" : "ORIGINAL", 560, 108, !st ? 21 : 17, !st ? "#7a1f12" : "#5a4a2a", "left", true);
+    const ready = N.boardKey === G.mode + "/" + boardId(N.boardStage) && !N.loading;
     if (!ready) txt(c, N.err || "Reading the records...", W / 2, 270, 20, ink);
     else if (!N.board.length) txt(c, "No scores yet. Claim the first spot.", W / 2, 270, 20, ink);
     else { let rank = 0; N.board.slice(0, 10).forEach((r, i) => {
       if (i === 0 || r.score !== N.board[i - 1].score) rank = i + 1; const y = 146 + i * 31, me = N.name && r.name === N.name && r.score === N.best;
       if (me) { c.fillStyle = "rgba(122,31,18,.18)"; c.fillRect(200, y - 14, 560, 28); }
-      txt(c, "#" + rank, 222, y, 21, ink, "left", true); txt(c, r.name, 290, y, 21, me ? "#7a1f12" : ink, "left", me); txt(c, String(r.score), 738, y, 21, ink, "right", true); }); }
+      txt(c, "#" + rank, 222, y, 21, ink, "left", true); txt(c, r.name, 290, y, 21, me ? "#7a1f12" : ink, "left", me); txt(c, ((WEAPONS.find(w => w.id === r.weapon) || {}).name || "").toLowerCase(), 600, y, 13, "#5a4a2a", "right"); txt(c, String(r.score), 738, y, 21, ink, "right", true); }); }
     txt(c, N.name ? "You: " + N.name + "   best " + N.best : "No name chosen. Press ESC, then N on the title.", W / 2, 466, 17, ink);
-    txt(c, "TAB switch mode      ESC back", W / 2, 492, 15, ink);
+    txt(c, "LEFT / RIGHT board      TAB mode      ESC back", W / 2, 492, 15, ink);
   } else if (G.state === "pause") { dark(0.5); title(c, "PAUSED", 250, 56, "#b8985a"); }
   else if (G.state === "over") { dark(0.55); title(c, G.continues > 0 ? "YOU FALL..." : "THE END", 220, 58, "#9a3a2c"); txt(c, G.continues > 0 ? "ENTER = continue   (" + G.continues + " left, p-5)" : "NO CONTINUES LEFT   -   ENTER for the title", W / 2, 290, 24, "#fff", "center", true); }
 }
@@ -1387,6 +1453,7 @@ function render(c, now) {
     drawDaggers(c);
     drawGrenades(c);
     drawBooms(c, dt);
+    drawWeaponFx(c);
     drawWeapon(c);   // target words stay readable in front of the weapon and flash
     if (G.burn) drawBurn(c);
     list.forEach(e => { if (e !== G.lock) plaque(c, e); }); if (G.lock && list.includes(G.lock)) plaque(c, G.lock);
@@ -1436,8 +1503,8 @@ if (typeof window !== "undefined" && typeof document !== "undefined" && document
     const data = await response.json(); if (!response.ok) throw new Error(data.error || "Score service unavailable."); return data;
   }
   async function loadBoard() {
-    if (!hosted) return; const mode = G.mode, request = ++boardRequest; N.loading = true; N.err = "";
-    try { const data = await api("/api/leaderboard?mode=" + mode); if (request !== boardRequest) return; N.board = data.board; N.best = data.best; N.boardMode = mode; }
+    if (!hosted) return; const mode = G.mode, stage = boardId(N.boardStage), request = ++boardRequest; N.loading = true; N.err = "";
+    try { const data = await api("/api/leaderboard?mode=" + mode + "&stage=" + stage); if (request !== boardRequest) return; N.board = data.board; N.best = data.best; N.boardKey = mode + "/" + stage; }
     catch (e) { if (request === boardRequest) N.err = e.message; }
     finally { if (request === boardRequest) N.loading = false; }
   }
@@ -1447,7 +1514,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined" && document
     saving = true; N.retry = false; N.status = "Saving your run...";
     try {
       const data = await api("/api/scores", pending[0]); pending.shift(); storage.set("dt_pending_runs", JSON.stringify(pending));
-      await loadBoard(); N.status = "Saved. Rank #" + data.rank + "   your best " + data.best;
+      await loadBoard(); N.status = "Saved to " + (data.stage === "all" ? "ALL STAGES" : (STAGES.find(s => s.id === data.stage) || {}).name || data.stage) + ". Rank #" + data.rank + "   your best " + data.best;
     } catch (e) { N.status = e.message + " Your run is kept."; N.retry = true; }
     finally { saving = false; }
     if (pending.length && !N.retry) await submitScore();
@@ -1468,8 +1535,9 @@ if (typeof window !== "undefined" && typeof document !== "undefined" && document
       lastFinal = G.final; N.status = "";
       const keys = G.results.reduce((n, r) => n + r.s.keys, 0), wrong = G.results.reduce((n, r) => n + r.s.wrong, 0);
       const chars = G.results.reduce((n, r) => n + r.s.chars, 0), secs = G.results.reduce((n, r) => n + r.s.secs, 0);
-      if (!hosted || G.level >= 0) return;   // only full runs go on the leaderboard
-      pending.push({ id: crypto.randomUUID(), version: "v48-1", mode: G.mode, score: G.final.total, accuracy: keys ? 100 * (keys - wrong) / keys : 100, wpm: secs ? chars / 5 / (secs / 60) : 0 });
+      if (!hosted) return;   // full runs go on ALL STAGES, single-stage runs on that stage's board
+      N.boardStage = G.level;
+      pending.push({ id: crypto.randomUUID(), version: "v48-2", mode: G.mode, stage: boardId(G.level), weapon: G.weapon, score: G.final.total, accuracy: keys ? 100 * (keys - wrong) / keys : 100, wpm: secs ? chars / 5 / (secs / 60) : 0 });
       storage.set("dt_pending_runs", JSON.stringify(pending)); submitScore();
     }
   }
