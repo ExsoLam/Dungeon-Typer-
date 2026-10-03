@@ -71,6 +71,7 @@ that a deployment or watcher is running; verify those separately.
 | root | `README.md`, `AGENTS.md`, `.gitignore`, `LICENSE`, the one hosted game file, and the folders below. Nothing else. |
 | `archive/` | Retired `typing_dungeon_v*.html` versions only. When a new version replaces the hosted one, move the old file here in the same PR as the hosting switch. |
 | `SOUNDS/` | Audio the game loads from beside its HTML. Keep it next to the game file. |
+| `web/` | Files hosting serves at the site root that the game itself does not need, such as the link preview image. |
 | `docs/` | Contributor documentation (Markdown and its images). |
 | `tools/` | Desktop tools for contributors, such as the stage mapper. |
 | `scripts/` | CI, hosting and check scripts. |

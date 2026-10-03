@@ -12,7 +12,7 @@ GAME = "typing_dungeon_v48.html"
 # Top-level entries that may exist. Anything else at the root fails.
 ROOT = {
     ".github", ".gitignore", "AGENTS.md", "README.md", "LICENSE",
-    GAME, "SOUNDS", "archive", "docs", "scripts", "server", "tests", "tools",
+    GAME, "SOUNDS", "archive", "docs", "scripts", "server", "tests", "tools", "web",
 }
 
 # Folder -> pattern every file under it must match.
@@ -25,6 +25,7 @@ FOLDERS = {
     "server": r"(worker\.mjs|migrations/\d{4}_[\w-]+\.sql)",
     ".github": r"workflows/[\w-]+\.yml",
     "SOUNDS": r"[\w .-]+\.(mp3|ogg|wav|m4a)",
+    "web": r"[\w.-]+\.(jpg|png|ico|txt|webmanifest)",
 }
 
 WHERE = {
