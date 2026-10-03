@@ -3,9 +3,10 @@
 Durable conventions for this repo. Read this first. There is no `STATUS.md` here:
 live state is in the issues and PRs, and the README covers the game itself.
 
-A browser typing game in one HTML file, with hosted scores in Cloudflare D1.
-The earlier GitHub issue score pipeline has been retired. Three stages, strict and original modes,
-rules reverse engineered from The Typing of the Dead.
+A browser typing game in one HTML file, with music in `SOUNDS/` and hosted scores in
+Cloudflare D1. Five stages with two bosses, strict and original modes, three difficulties,
+five cosmetic weapons, rules reverse engineered from The Typing of the Dead. The earlier
+GitHub issue score pipeline has been retired.
 
 ## Start here: preserve the repo and local work
 
@@ -23,10 +24,12 @@ using it. Establish ownership; if it is uncertain, ask the owner before switchin
 - Resolve conflicts file by file. Compare the merge base, both sides and the PR
   intent. Do not accept all of one side or replace an entire game file. Preserve
   unrelated fixes and data, then inspect the final diff against current `main`.
-- Multiple game versions (`v21`, `v31`, `v38`) are present. Their names do not make
-  them interchangeable. Hosting currently stages `typing_dungeon_v21.html`.
-  Do not rename, delete, consolidate or switch the hosted version merely to tidy
-  the repo. Agree a version migration separately and test the intended gameplay.
+- Multiple game versions (`v21`, `v31`, `v38`, `v47`, `v48`) are present. Their names do
+  not make them interchangeable. `typing_dungeon_v48.html` is the development line and
+  the hosted game (the owner agreed the v21 to v48 migration). Hosting serves it at `/`
+  and keeps serving `/typing_dungeon_v21.html` at its old path. Do not rename, delete,
+  consolidate or switch the hosted version merely to tidy the repo. Agree a version
+  migration separately and test the intended gameplay.
 - The long embedded art and word-list lines are irreplaceable inputs. Use anchored
   patches, compare their hashes before and after conflict resolution, and never
   copy the word lists into another file or publish them as an artefact.
@@ -49,7 +52,10 @@ that a deployment or watcher is running; verify those separately.
 
 | Path | What it is |
 | --- | --- |
-| `typing_dungeon_v21.html` | The whole game. Single file, no build, no dependencies. Engine, renderer, procedural sound, embedded art, word lists. About 2.2 MB, mostly embedded assets. |
+| `typing_dungeon_v48.html` | The game. Single file, no build, no dependencies. Engine, renderer, procedural sound effects, embedded art, stage photos, weapons and word lists. About 3.8 MB, mostly embedded assets. |
+| `SOUNDS/` | Audio loaded from beside the HTML: stage music, `STAGE END`, `FINAL RESULTS`. The game runs silently without it. `GUNSHOT.*` are no longer used. |
+| `stage_mapper.py` | Desktop tool (Python, tkinter, Pillow) for laying out a stage on its photo and saving it as stage JSON. |
+| `typing_dungeon_v21.html`, `v31`, `v38`, `v47` | Older versions, kept for reference. v21 is still served at its old URL. |
 | `server/worker.mjs`, `server/migrations/` | Hosted score API and D1 schema. |
 | `scripts/`, `tests/` | Host staging and verification. |
 | `.github/workflows/host-game.yml` | Cloudflare production and isolated PR deployments. |
@@ -61,28 +67,32 @@ that a deployment or watcher is running; verify those separately.
 | Thing | Value |
 | --- | --- |
 | Repo | `ExsoLam/Dungeon-Typer-`, public, default branch `main` |
-| Game entry point | `typing_dungeon_v21.html`, canvas 960x540, scales to 16:9 |
+| Game entry point | `typing_dungeon_v48.html`, canvas 960x540 (play area 960x440, HUD below), scales to 16:9 |
 | Modes | `strict` (case and spaces count, score x1.0), `original` (both ignored, score x0.75) |
-| `localStorage` keys | `tod_poc_best`, `tod_poc_best_orig`, `tod_poc_mode` |
-| Hosted leaderboard | `server/worker.mjs`, with separate strict/original best scores in D1. |
+| Difficulties | `easy` (score x0.6), `normal` (x0.8), `hard` (x1.0). Not sent to the Worker; the multiplier is already in the score |
+| Stage data | `STAGES` (geometry, masks, effects, `cap`, `music`) and `SEGS` (the wave), same order, one entry per stage |
+| `localStorage` keys | `tod_poc_mode`, `tod_poc_diff`, `tod_poc_level`, best scores under `tod_poc_best` plus `_orig`, `_<diff>` (not for hard) and `_L<stage index>` suffixes; `dt_weapon`, `dt_player`, `dt_pending_runs` |
+| Hosted leaderboard | `server/worker.mjs`, scoring version `v48-1`, separate strict/original best scores in D1. Only full runs are submitted; single-stage runs are not. |
 
 ## Hard rules
 
-- **Never read or grep the game file whole.** Six lines hold base64 blobs (currently 59, 516, 574, 829, 830, 831) and together they are about 2.1 MB of the file. A plain `grep` or `cat` over it dumps megabytes into your context and tells you nothing. Filter first, and re-check the line numbers rather than trusting the ones above, since they move when the file changes:
+- **Never read or grep the game file whole.** Fifteen lines hold embedded data (in v48 currently 62, 658, 716, 718, 992, 1017 to 1020 and 1273 to 1277: the word list, sprite sheets, the Lobber atlas, the weapon sprites and the five stage photos) and together they are about 3.6 MB of the file. A plain `grep` or `cat` over it dumps megabytes into your context and tells you nothing. Filter first, and re-check the line numbers rather than trusting the ones above, since they move when the file changes:
 
-      awk 'length($0)>1000 {print NR, length($0)}' typing_dungeon_v21.html
-      awk 'length($0)<400' typing_dungeon_v21.html | grep -n 'pattern'
+      awk 'length($0)>1000 {print NR, length($0)}' typing_dungeon_v48.html
+      awk 'length($0)<1000' typing_dungeon_v48.html | grep -n 'pattern'
 
 - **Edit the game with anchored patches, never a whole-file rewrite.** A full rewrite risks the base64 art and the word list, which are the parts nobody can regenerate. Change one unique string at a time.
-- **Keep it one file, no build, no dependencies.** No bundler, no CDN, no npm, no `package.json`. The value of this project is that the file opens in a browser and runs. If a change needs a toolchain, the change is wrong.
+- **Keep it one file, no build, no dependencies.** No bundler, no CDN, no npm, no `package.json`. The value of this project is that the file opens in a browser and runs. The only outside files are the audio in `SOUNDS/`, and the game must still run, silently, when they are missing. If a change needs a toolchain, the change is wrong.
+- **Stages are data.** A stage is one `STAGES` entry, one `SEGS` entry at the same index, and one photo. Nothing else should depend on the stage count or a stage's index; per-stage behaviour goes in a field on its `STAGES` entry (as `cap` and `music` do). `WEAPON_AT` is the one exception: the weapon picker opens before that stage index in a full run.
 - **Keep the game logic free of the DOM.** `G`, `tierFor`, `pickFrom`, `key`, `kill`, `update` and the rest must not touch `document` or `window`, so they stay testable headlessly. Browser glue belongs at the bottom of the file behind the `typeof window` guard.
 - **Do not extract or republish the word lists.** They come from The Typing of the Dead (SEGA) and the repo has no licence file. Leave them embedded in the game; do not copy them into another file, repo or gist.
 - **Branch and open a PR; do not push to `main`.** Keep changes on a branch, and keep a PR to one concern.
-- **Treat `typing_dungeon_v21.html` as the public entry point.** Unverified, but something outside this repo (the Worker or a host) almost certainly points at that path, so check before renaming or moving it.
+- **Treat `typing_dungeon_v48.html` as the public entry point.** `scripts/stage-host.mjs` publishes it as `/` and `/typing_dungeon_v48.html`, and keeps `/typing_dungeon_v21.html` for old links. Check both before renaming or moving either file.
+- **Change the scoring version with the scoring.** If a change alters how scores are earned, bump `VERSION` in `server/worker.mjs` and the `version` the game submits together, and update `tests/validation.mjs` and `tests/api-live.mjs`. Cosmetic changes keep it.
 
 ## Testing
 
-The browser game needs no build. `check-game.yml` runs syntax, three-stage engine,
+The browser game needs no build. `check-game.yml` runs syntax, five-stage engine (including the weapon picker),
 validation, schema and local Worker/API checks on PRs. `host-game.yml` deploys
 previews and verifies their exact revision and score scope. A green check does not
 replace playback testing. Useful checks from the repo root:
@@ -101,21 +111,38 @@ For specific changes, "verified" means:
 1. **Syntax check the script block without a browser.** Cheap, catches a broken edit
    immediately:
 
-       python3 -c "import re;s=open('typing_dungeon_v21.html',encoding='utf-8').read();open('/tmp/dt.js','w').write(re.search(r'<script>(.*)</script>',s,re.S).group(1))"
+       python3 -c "import re;s=open('typing_dungeon_v48.html',encoding='utf-8').read();open('/tmp/dt.js','w').write(re.search(r'<script>(.*)</script>',s,re.S).group(1))"
        node --check /tmp/dt.js
 
 2. **Play it.** For any change to gameplay, rendering or controls, open the file in a
    browser and exercise the thing you changed. At minimum: Enter starts the run, typing
-   a word kills a monster, the stage results screen appears, and the console has no
-   errors. A rendering change is not verified by reading code.
+   a word kills a monster, the stage results screen appears, the weapon picker opens
+   before stage 3, music changes between stages and results, and the console has no
+   errors. A rendering or audio change is not verified by reading code.
+
+## Adding a stage
+
+1. Map it in `stage_mapper.py` (see the README) and save the stage JSON next to its photo.
+2. Recompress the photo to JPEG (quality about 82) and add it as a new `const <KEY>IMG = ...` line beside the other stage photos, then register it in `STIMG`.
+3. Insert the `STAGES` entry, with `img: "<key>"`, at the right position, and the `SEGS` entry (name, `queue`, `gap`, `max`) at the same index. The JSON field names match.
+4. Set `music` explicitly on any stage whose track should not follow its position (the default is `STAGE <n>`), and set `cap` (minimum word tier input) to fit the difficulty ramp.
+5. Check `WEAPON_AT` still opens the picker where intended, and that `tests/game-flow.mjs` expects the new stage count.
+
+Geometry model: enemy height grows linearly with feet y, from the zone height `h` at the spawn to `hend` at the attack line `yend`, so every zone should imply the same horizon. Enemies on walkways or stairs cannot be sized correctly. A mask hides an enemy only while the enemy's feet are above the mask's depth `y`. Keep `yend` above the HUD (about 81% of the image height).
 
 ## Known gaps
 
 - No licence file. The word lists and par values are from The Typing of the Dead, and the art is embedded. Worth resolving before anything is reused.
 - `beginDoors()` never runs. The two-door branch after stage 1 (`beginDoors`, `updateDoors`, `BRANCH`, `segName`) has no call site, so the Sewers and Ossuary branch is dead code and the README does not document it. Either wire it up or delete it.
-- Hosted v21 submits completed runs to the same-origin Worker. Offline file play
+- Hosted v48 submits completed full runs to the same-origin Worker under `v48-1`. Runs
+  saved under `v21-1` stay in D1 but no longer show on the boards. Offline file play
   remains available; browser identity has no cross-device recovery and submitted
   scores are client-reported. Scores from the retired issue pipeline were not imported.
+- One board per mode mixes difficulties; the difficulty multiplier is in the score.
+- Best scores in `localStorage` are keyed by stage index, so reordering stages shifts them.
+- The Control Room has lanes 1 and 2 only 11 px apart and enemies on the ladder and stairs
+  sized as if on the floor; the Supply Corridor has lanes 1 and 2 18 px apart. Both have
+  their attack line under the HUD.
 
 ## PR ownership and live testing
 
