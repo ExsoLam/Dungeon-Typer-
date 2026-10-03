@@ -68,7 +68,7 @@ that a deployment or watcher is running; verify those separately.
 
 | Where | What may live there |
 | --- | --- |
-| root | `README.md`, `AGENTS.md`, `.gitignore`, `LICENSE`, the one hosted game file, and the folders below. Nothing else. |
+| root | `README.md`, `AGENTS.md`, `.gitignore`, `.githooks/`, `LICENSE`, the one hosted game file, and the folders below. Nothing else. |
 | `archive/` | Retired `typing_dungeon_v*.html` versions only. When a new version replaces the hosted one, move the old file here in the same PR as the hosting switch. |
 | `SOUNDS/` | Audio the game loads from beside its HTML. Keep it next to the game file. |
 | `web/` | Files hosting serves at the site root that the game itself does not need, such as the link preview image. |
@@ -77,7 +77,8 @@ that a deployment or watcher is running; verify those separately.
 | `scripts/` | CI, hosting and check scripts. |
 | `tests/` | Automated checks. |
 | `server/` | `worker.mjs` and numbered D1 migrations. |
-| `.github/workflows/` | Workflows. |
+| `.github/` | Workflows, `CODEOWNERS`, `dependabot.yml`, the PR template. |
+| `.githooks/` | The shared git hooks. |
 
 Scratch output, screenshots, art drafts, test profiles and notes stay out of the repo:
 use your own scratch directory or the ignored `.deploy/`. Adding a new kind of file
@@ -170,6 +171,8 @@ Geometry model: enemy height grows linearly with feet y, from the zone height `h
 
 Several people and their agents work here at once. These keep that cheap.
 
+- **Run `scripts/dev-setup.sh` once per clone.** It turns on the shared hooks, makes
+  `fetch` prune deleted branches, makes `pull` fast-forward only, and adds `git tidy`.
 - **The main checkout tracks `main` and stays clean.** Do not develop in it; use it
   to fetch, review and create worktrees.
 - **One task, one branch, one worktree.** Start every task from fresh `main`:
@@ -189,12 +192,31 @@ Several people and their agents work here at once. These keep that cheap.
 - **Keep branches short lived.** Aim to merge within a day or two. Before pushing more
   work, merge `origin/main` into a branch that is behind, so conflicts stay small.
   Do not rebase or force push a branch someone else may have pulled.
-- **Clean up after merge.** Remove the worktree (`git worktree remove <path>`) and
-  delete the branch locally and on the remote once its PR is merged or closed.
-  Never remove a worktree you did not create, or one with uncommitted work.
+- **Clean up after merge.** GitHub deletes the remote branch on merge. Run `git tidy`
+  to remove local worktrees and branches whose PR merged; it skips anything with
+  uncommitted work or commits after the merged head. Never remove a worktree you did
+  not create, or one with uncommitted work.
 - **Check before you start.** `git worktree list` and the open PRs show who is
   working on what. Do not pick up a task that already has an open PR without asking
   its author.
+
+## Dev pipeline
+
+What runs where. Do not bypass a guard (`--no-verify`, `ALLOW_FORCE=1`,
+`ALLOW_ASSET_CHANGE=1`, the `assets-change` label) without saying so in the PR.
+
+| Stage | Guard | Blocks |
+| --- | --- | --- |
+| `pre-commit` hook | `.githooks/pre-commit` | commits on `main`, files outside the layout, new files over 2 MB, likely secrets, a game script that does not parse, changed embedded art or word-list lines |
+| `commit-msg` hook | `.githooks/commit-msg` | subjects that are not conventional commits |
+| `pre-push` hook | `.githooks/pre-push` | pushes to `main`, force pushes that drop commits; runs the layout, syntax, engine and validation checks |
+| PR CI | `check-game.yml` (`check`) | layout, syntax, engine, validation, schema, local Worker and API |
+| PR CI | `host-game.yml` (`deploy`) | a preview that fails to deploy or serves the wrong revision |
+| PR CI | `pr-hygiene.yml` (`hygiene`) | a base other than `main`, a non-conventional title, embedded line changes without the `assets-change` label, embedded data copied into other files |
+| After merge | `prune.yml` | deletes the merged head branch and the closed PR's preview Worker; a weekly sweep catches stragglers (preview scores stay in D1) |
+| `main` ruleset | `scripts/apply-repo-settings.sh` (admin) | direct pushes, force pushes, deletion, merging without passing `check`, `deploy` and `hygiene` on an up-to-date branch; squash merges only |
+
+Dependabot opens monthly `ci:` PRs to keep the workflow actions current.
 
 ## PR ownership and live testing
 

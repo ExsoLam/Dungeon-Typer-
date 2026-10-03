@@ -1,0 +1,59 @@
+name: Prune merged branches and previews
+on:
+  pull_request:
+    types: [closed]
+  schedule:
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: List what would be pruned without deleting
+        type: boolean
+        default: true
+permissions:
+  contents: write
+  pull-requests: read
+concurrency:
+  group: prune
+  cancel-in-progress: false
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      DRY: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '1' || '' }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Delete merged head branches
+        run: |
+          # Only a branch whose tip is exactly a merged PR's head, which no open PR uses.
+          open=$(gh pr list -R "$REPO" --state open --limit 200 --json headRefName,baseRefName -q '.[]|.headRefName,.baseRefName')
+          if [ "${{ github.event_name }}" = pull_request ]; then
+            candidates=$(gh pr view "${{ github.event.pull_request.number }}" -R "$REPO" --json state,headRefName,headRefOid,isCrossRepository \
+              -q 'select(.state=="MERGED" and (.isCrossRepository|not))|.headRefName+" "+.headRefOid')
+          else
+            candidates=$(gh pr list -R "$REPO" --state merged --limit 300 --json headRefName,headRefOid,isCrossRepository \
+              -q '.[]|select(.isCrossRepository|not)|.headRefName+" "+.headRefOid')
+          fi
+          while read -r branch sha; do
+            [ -z "$branch" ] || [ "$branch" = main ] && continue
+            grep -qxF "$branch" <<< "$open" && { echo "keep $branch: used by an open PR"; continue; }
+            tip=$(gh api "repos/$REPO/git/ref/heads/$branch" -q .object.sha 2>/dev/null) || continue
+            [ "$tip" = "$sha" ] || { echo "keep $branch: has commits after its merged PR"; continue; }
+            echo "delete branch $branch"
+            [ -n "$DRY" ] || gh api -X DELETE "repos/$REPO/git/refs/heads/$branch" >/dev/null
+          done <<< "$candidates"
+      - name: Delete preview Workers of closed PRs
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        run: |
+          api=https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts
+          names=$(curl -sf -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$api" | jq -r '.result[].id' | grep -E '^pr-[0-9]+$' || true)
+          for name in $names; do
+            state=$(gh pr view "${name#pr-}" -R "$REPO" --json state -q .state 2>/dev/null || echo UNKNOWN)
+            [ "$state" = MERGED ] || [ "$state" = CLOSED ] || continue
+            echo "delete Worker $name ($state)"
+            [ -n "$DRY" ] || curl -sf -X DELETE -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$api/$name?force=true" >/dev/null
+          done
+          # Preview scores stay in the preview D1 database; only the Worker goes.

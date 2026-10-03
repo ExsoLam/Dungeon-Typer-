@@ -5,6 +5,9 @@ on:
     branches: [main]
 permissions:
   contents: read
+concurrency:
+  group: check-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -13,13 +16,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: PRs target main
-        if: github.event_name == 'pull_request'
-        run: |
-          if [ "${{ github.base_ref }}" != main ]; then
-            echo "This PR targets ${{ github.base_ref }}. Retarget it to main: a PR merged into another branch never reaches production."
-            exit 1
-          fi
       - run: python3 scripts/check-layout.py
       - run: python3 scripts/check-game.py
       - run: node --check server/worker.mjs

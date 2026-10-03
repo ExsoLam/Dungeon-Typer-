@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Local safety net. Installed by scripts/dev-setup.sh. Bypass once with --no-verify.
+set -euo pipefail
+branch=$(git symbolic-ref --short -q HEAD || echo detached)
+if [ "$branch" = main ]; then
+  echo "pre-commit: do not commit on main. Create a worktree:"
+  echo "  git worktree add ../dungeon-typer-wt/<type>/<topic> -b <type>/<topic> origin/main"
+  exit 1
+fi
+
+python3 scripts/check-layout.py >/dev/null || { python3 scripts/check-layout.py; exit 1; }
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+
+# Large files: only the game file may exceed 2 MB.
+while IFS= read -r f; do
+  [ -z "$f" ] || [ "$f" = typing_dungeon_v48.html ] && continue
+  size=$(git cat-file -s ":$f" 2>/dev/null || echo 0)
+  if [ "$size" -gt 2000000 ]; then echo "pre-commit: $f is $((size/1000000)) MB. Keep large files out of the repo."; exit 1; fi
+done <<< "$staged"
+
+# Secrets in added lines.
+if git diff --cached -U0 | grep -E '^\+' | grep -qE '(BEGIN [A-Z ]*PRIVATE KEY|ghp_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|CLOUDFLARE_API_TOKEN *[=:] *["'"'"']?[A-Za-z0-9_-]{30,}|AKIA[0-9A-Z]{16})'; then
+  echo "pre-commit: a staged line looks like a secret. Remove it; tokens belong in GitHub secrets."
+  exit 1
+fi
+
+# The game: syntax, and the irreplaceable embedded lines.
+if grep -qx typing_dungeon_v48.html <<< "$staged"; then
+  tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+  git show :typing_dungeon_v48.html > "$tmp/game.html"
+  python3 -c "import re,sys;s=open(sys.argv[1],encoding='utf-8').read();open(sys.argv[2],'w').write(re.search(r'<script>(.*)</script>',s,re.S).group(1))" "$tmp/game.html" "$tmp/game.js"
+  node --check "$tmp/game.js" || { echo "pre-commit: the game script does not parse."; exit 1; }
+  if git cat-file -e HEAD:typing_dungeon_v48.html 2>/dev/null; then
+    before=$(git show HEAD:typing_dungeon_v48.html | awk 'length($0)>1000' | shasum | cut -c1-40)
+    after=$(awk 'length($0)>1000' "$tmp/game.html" | shasum | cut -c1-40)
+    if [ "$before" != "$after" ] && [ "${ALLOW_ASSET_CHANGE:-}" != 1 ]; then
+      echo "pre-commit: this commit changes the embedded art or word-list lines."
+      echo "If that is intended, commit with ALLOW_ASSET_CHANGE=1 and label the PR assets-change."
+      exit 1
+    fi
+  fi
+fi

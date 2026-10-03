@@ -11,7 +11,7 @@ GAME = "typing_dungeon_v48.html"
 
 # Top-level entries that may exist. Anything else at the root fails.
 ROOT = {
-    ".github", ".gitignore", "AGENTS.md", "README.md", "LICENSE",
+    ".github", ".githooks", ".gitignore", "AGENTS.md", "README.md", "LICENSE",
     GAME, "SOUNDS", "archive", "docs", "scripts", "server", "tests", "tools", "web",
 }
 
@@ -23,7 +23,8 @@ FOLDERS = {
     "tests": r"[\w.-]+\.(py|mjs)",
     "tools": r"[\w.-]+\.py",
     "server": r"(worker\.mjs|migrations/\d{4}_[\w-]+\.sql)",
-    ".github": r"workflows/[\w-]+\.yml",
+    ".github": r"(workflows/[\w-]+\.yml|CODEOWNERS|dependabot\.yml|pull_request_template\.md)",
+    ".githooks": r"(pre-commit|commit-msg|pre-push)",
     "SOUNDS": r"[\w .-]+\.(mp3|ogg|wav|m4a)",
     "web": r"[\w.-]+\.(jpg|png|ico|txt|webmanifest)",
 }

@@ -197,6 +197,7 @@ docs/HOSTING.md                        hosting, database setup and the playback 
 
 ## Working on the game
 
+- Run `scripts/dev-setup.sh` once after cloning: it installs the shared git hooks and pruning. Work in a worktree per task and open PRs against `main` (AGENTS.md has the workflow).
 - No build and no dependencies for the game itself. Checks live in `tests/` and `scripts/check-game.py` (see AGENTS.md for the commands). The game logic is deliberately DOM free (`G`, `tierFor`, `pickFrom`, `key`, `kill`, `update`), so it can be driven headlessly; the browser glue, including music and the score client, is at the bottom of the file behind a `typeof window` check.
 - Art is embedded as base64 data URIs (the zombie sprite sheet, the Axeman and Lobber atlases, the pistol and weapon sprites, and the five stage photos), which is why the file is about 3.8 MB. Editing art means replacing those strings.
 - Word lists and their par values are embedded in `WORDSET`, taken from the original game. They are not published anywhere else in the repo, so treat them as data for this game rather than something to extract.

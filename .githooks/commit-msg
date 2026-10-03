@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Conventional commit subjects, matching AGENTS.md. Bypass once with --no-verify.
+subject=$(head -n1 "$1")
+if grep -qE '^(Merge|Revert|fixup!|squash!|amend!)' <<< "$subject"; then exit 0; fi
+if ! grep -qE '^(feat|fix|docs|ci|chore|refactor|test|perf|style|build)(\([a-z0-9-]+\))?!?: .+' <<< "$subject"; then
+  echo "commit-msg: start the subject with a type, e.g. 'fix: lobber hitbox' (feat, fix, docs, ci, chore, refactor, test, perf)."
+  exit 1
+fi
