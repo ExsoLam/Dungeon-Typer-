@@ -15,7 +15,10 @@ staged=$(git diff --cached --name-only --diff-filter=ACMR)
 # Large files: only the game file may exceed 2 MB.
 while IFS= read -r f; do
   [ -z "$f" ] || [ "$f" = typing_dungeon_v48.html ] && continue
-  size=$(git cat-file -s ":$f" 2>/dev/null || echo 0)
+  blob=$(git rev-parse -q --verify ":$f" 2>/dev/null) || continue
+  # A blob already on main (archived versions, files arriving in a merge) is not new.
+  git ls-tree -r origin/main 2>/dev/null | grep -q " $blob"$'\t' && continue
+  size=$(git cat-file -s "$blob")
   if [ "$size" -gt 2000000 ]; then echo "pre-commit: $f is $((size/1000000)) MB. Keep large files out of the repo."; exit 1; fi
 done <<< "$staged"
 
