@@ -1,4 +1,4 @@
-const VERSION = 'v21-1';
+const VERSION = 'v48-1';
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const hash = async value => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)))].map(b => b.toString(16).padStart(2, '0')).join('');
 const tokenPattern = /^[a-f0-9]{64}$/;

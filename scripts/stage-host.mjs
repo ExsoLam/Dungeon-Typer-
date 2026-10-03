@@ -9,7 +9,8 @@ rmSync(out + '/public', { recursive: true, force: true });
 mkdirSync(out + '/public', { recursive: true });
 copyFileSync('typing_dungeon_v21.html', out + '/public/typing_dungeon_v21.html');
 cpSync('SOUNDS', out + '/public/SOUNDS', { recursive: true });
-copyFileSync('typing_dungeon_v21.html', out + '/public/index.html');
+copyFileSync('typing_dungeon_v48.html', out + '/public/typing_dungeon_v48.html');
+copyFileSync('typing_dungeon_v48.html', out + '/public/index.html');
 writeFileSync(out + '/wrangler.json', JSON.stringify({
   name: scope.startsWith('pr-') ? scope : 'play',
   main: '../server/worker.mjs', compatibility_date: '2026-10-01', workers_dev: true,
