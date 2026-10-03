@@ -1205,10 +1205,9 @@ function screens(c) {
     [["MODE", st ? "STRICT" : "ORIGINAL", st ? "case and spaces count" : "case and spaces ignored, as in the original"],
      ["DIFFICULTY", G.diff.toUpperCase(), { easy: "spawn rate -50%, fewer bats, +25% typing time", normal: "spawn rate -25%, fewer bats", hard: "full spawn rate" }[G.diff]],
      ["LEVEL", lvl, G.level < 0 ? "the full run, ranked on the leaderboard" : "single stage practice, not ranked"]].forEach((r, i) => {
-      const y = py + i * rowH, on = M === i, vx = px + 330, R = pillH / 2;
+      const y = py + i * rowH, on = M === i, vx = px + 330, R = 6;
       rr(c, px, y, pw, pillH, R); c.fillStyle = on ? "rgba(52,40,20,.88)" : "rgba(14,11,8,.74)"; c.fill();
       c.lineWidth = on ? 1.5 : 1; c.strokeStyle = on ? "rgba(220,180,87,.85)" : "rgba(184,152,90,.35)"; c.stroke();
-      if (on) { c.save(); rr(c, px, y, pw, pillH, R); c.clip(); c.fillStyle = "#dcb457"; c.fillRect(px, y, 4, pillH); c.restore(); }
       txt(c, r[0], px + 30, y + pillH / 2, 14, on ? gold : dim, "left", true);
       txt(c, r[1], vx, y + 17, on ? 20 : 18, on ? "#ffd27a" : pale, "center", true);
       txt(c, r[2], vx, y + 35, 12, on ? "#cdbd96" : "rgba(156,143,116,.8)");
