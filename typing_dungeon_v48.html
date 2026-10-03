@@ -168,7 +168,7 @@ function newGame() {
 }
 function startSegment(i) {
   if (typeof clearFx === "function") clearFx();
-  G.seg = i; G.queue = SEGS[i].queue.split(" "); G.enemies = []; G.lock = null; G.daggers = []; G.blasts = []; G.burn = false; G.nextSpawn = G.clock + 2.8;
+  G.seg = i; G.queue = SEGS[i].queue.split(" "); G.enemies = []; G.lock = null; G.daggers = []; G.blasts = []; G.burn = false; G.perkN = 0; G.nextSpawn = G.clock + 2.8;
   G.st = newStats();   // stats per stage
   G.cap = STAGES[i].cap || 0; G.state = "play"; G.wave = { name: SEGS[i].name, t0: G.clock }; msg("Wave " + (i + 1) + ": " + SEGS[i].name);
 }
@@ -201,10 +201,10 @@ function loseLife() {
   G.lives--; bumpP(-2); hook("damage"); G.calm = 0; G.flash = 0.35; G.st.lost++; msg("You are hit! p-2");
   if (G.lives <= 0) { G.state = "over"; msg("You fall..."); }
 }
-function kill(e) {
+function kill(e, assisted) {   // assisted: a weapon perk finished the word
   if (G.burn) { G.burn = false; msg("Fire out"); hook("douse"); }   // finishing a target clean while on fire puts it out
-  const secs = e.firstT === null ? 0 : e.lastT - e.firstT, rk = rankOf(secs, e.value), R = RANKS[rk], s = G.st;
-  hook("kill", { e, rk }); s.words++; s.ranks[rk]++; s.rankPts += R.pts; s.base += 15; s.bonus += ((1 + 0.1 * G.p) * MODES[G.mode].mult * DIFFS[G.diff].mult - 1) * (R.pts + 15); s.chars += e.word.length - 1; s.secs += secs;
+  const secs = e.firstT === null ? 0 : e.lastT - e.firstT, rk = assisted && e.firstT === null ? RANKS.length - 1 : rankOf(secs, e.value), R = RANKS[rk], s = G.st;
+  hook("kill", { e, rk }); s.words++; s.ranks[rk]++; s.rankPts += R.pts; s.base += 15; s.bonus += ((1 + 0.1 * G.p) * MODES[G.mode].mult * DIFFS[G.diff].mult - 1) * (R.pts + 15); s.chars += Math.max(0, e.word.length - 1); s.secs += secs;
   G.acc += R.acc; if (G.acc >= 100) { G.acc = 0; bumpP(1); msg("Accumulator full: p+1"); }
   if (TYPES[e.type].citizen) { s.rescued++; msg("Prisoner rescued! +150"); }
   else msg(e.word.slice(0, 28) + " -> rank " + R.k + " +" + R.pts);
@@ -303,6 +303,7 @@ function update(dt) {
     if (e._sumCool > 0) e._sumCool -= dt;
     if (e.gray > 0) { e.gray -= dt; e.born += dt; }
     if (TYPES[e.type].auto) grenadierTick(e);
+    if (e.fire !== undefined && !(e.stagger > 0) && !(e.gray > 0) && (e.fire -= dt) <= 0) { e.fire += PERK.burn; trim(e); if (!G.enemies.includes(e)) continue; }   // ray gun: burning words lose a letter every PERK.burn s
     if (G.clock - e.born < e.life) continue;
     if (G.lock === e) G.lock = null;
     if (TYPES[e.type].citizen) { G.st.lost++; msg("The prisoner is lost..."); G.enemies.splice(G.enemies.indexOf(e), 1); }
@@ -341,16 +342,38 @@ function doorKey(k) {
     if (d.idx[i] >= d.words[i].w.length) { d.chosen = i; d.open = 0; msg(BRANCH[d.ids[i]].name + " it is..."); hook("door"); }
   } else G.st.wrong++;
 }
-/* ---- weapons: looks only. Scoring, timing and ranks never read G.weapon. The picker opens before a single-stage run and,
-   in a full run, before stage WEAPON_AT + 1 (after the Control Room boss). ---- */
+/* ---- weapons. The picker opens before a single-stage run and, in a full run, before stage WEAPON_AT + 1 (after the Control
+   Room boss). Each weapon but the pistol has a perk (see PERK below); the pistol is the plain original game. ---- */
 const WEAPONS = [
-  { id: "pistol", name: "SERVICE PISTOL", note: "Reliable. Loud. Yours.", snd: "pistol" },
-  { id: "ar", name: "SUPPRESSED AR", note: "Whisper quiet. Fully kitted.", snd: "ar" },
-  { id: "ray", name: "RAY GUN", note: "Atomic. Slightly illegal.", snd: "ray" },
-  { id: "shotgun", name: "DOUBLE BARREL", note: "Subtle it is not.", snd: "dbl" },
-  { id: "xbow", name: "CROSSBOW", note: "Silent. Medieval. Efficient.", snd: "twang" }
+  { id: "pistol", name: "SERVICE PISTOL", note: "Reliable. Loud. Yours.", snd: "pistol", perk: "No tricks: the original game." },
+  { id: "ar", name: "SUPPRESSED AR", note: "Whisper quiet. Fully kitted.", snd: "ar", perk: "Every 4th key also takes a letter off the end of your target." },
+  { id: "ray", name: "RAY GUN", note: "Atomic. Slightly illegal.", snd: "ray", perk: "Sets what it hits on fire: a burning word loses a letter every 1/4 s." },
+  { id: "shotgun", name: "DOUBLE BARREL", note: "Subtle it is not.", snd: "dbl", perk: "Every 4th key takes a letter off each enemy around your target." },
+  { id: "xbow", name: "CROSSBOW", note: "Silent. Medieval. Efficient.", snd: "twang", perk: "Bolts pass through: every 4th key takes a letter off every enemy further back than your target." }
 ];
 const WEAPON_AT = 2;
+/* ---- weapon perks. A trim takes one letter off the end of the untyped part of a word (and any space left dangling); a word
+   trimmed down to what you have typed is finished. Kills a perk finishes on an enemy you never typed score rank E.
+   every: correct keys per AR, shotgun or crossbow trim. burn: seconds per letter while a word burns (ray gun).
+   splash: shotgun radius around the target, in screen pixels at full scale. The crossbow hits every enemy further back. ---- */
+const PERK = { every: 4, burn: 0.25, splash: 400 };
+function trim(e) {
+  if (!G.enemies.includes(e) || e.stagger > 0 || e.gray > 0) return;
+  let n = e.word.length - 1;
+  while (n > e.idx && e.word[n - 1] === " ") n--;
+  e.word = e.word.slice(0, Math.max(e.idx, n)); hook("trim", e);
+  if (e.idx >= e.word.length) kill(e, true);
+}
+function perkShot(e) {   // runs on every PERK.every-th correct key, with e the target just hit (it may have died from that key)
+  const w = G.weapon, P = pos(e);
+  if (w === "ar") { trim(e); return; }
+  if (w !== "shotgun" && w !== "xbow") return;
+  G.enemies.slice().forEach(x => {
+    if (x === e || TYPES[x.type].citizen) return;
+    const Q = pos(x);
+    if (w === "shotgun" ? Math.hypot(Q.x - P.x, Q.y - P.y) < PERK.splash * Math.max(P.s, Q.s) + 80 : Q.s < P.s) trim(x);   // crossbow: anything further back
+  });
+}
 const weaponDef = () => WEAPONS.find(w => w.id === G.weapon) || WEAPONS[0];
 function setWeapon(i) { G.weapon = WEAPONS[(i + WEAPONS.length) % WEAPONS.length].id; hook("weapon", G.weapon); }
 function openScores(from) { G.back = from; G.state = "scores"; hook("loadBoard"); }
@@ -425,7 +448,9 @@ function key(k) {
     if (e.firstT === null) e.firstT = G.clock;
     e.lastT = G.clock; e.idx++; hook("hit", e);
     while (!CFG.SPACES && e.word[e.idx] === " ") e.idx++;
+    if (G.weapon === "ray" && e.fire === undefined && !TYPES[e.type].citizen) { e.fire = PERK.burn; hook("aflame", e); }
     if (e.idx >= e.word.length) kill(e);
+    if (++G.perkN % PERK.every === 0) perkShot(e);
   } else {
     G.st.wrong++; hook("miss", e);
     if (G.burn) { G.burn = false; msg("You burn!"); hook("burn"); loseLife(); if (G.state === "over") return; }   // on fire: a typo costs another life
@@ -884,6 +909,9 @@ function pos(e) {
 }
 hooks.hit = e => { const P = pos(e); e._f = 0.12; snd.hit(); burst(P.x, P.y - 150 * P.s * P.k, 6, ["#9a1812", "#6a0e0a", "#c02a20"], 170, 0.4); if (!TYPES[e.type].citizen) shootPistol(); };
 hooks.miss = e => { e._m = 0.25; snd.miss(); };
+const TRIM_COL = { ar: ["#ffd27a", "#fff0c0"], ray: ["#ffb040", "#ff6a20", "#ffe080"], shotgun: ["#ff9a40", "#ffd080", "#c84a20"], xbow: ["#e8d8b0", "#a88a5a"] };
+hooks.trim = e => { const P = pos(e), y = P.y - (e.type === "bat" ? 30 : e.lane === 1 ? 100 : 155) * P.s * P.k; e._t = 0.15; burst(P.x + 40 * P.s, y, 5, TRIM_COL[G.weapon] || TRIM_COL.ar, 120, 0.3); };
+hooks.aflame = e => snd.ignite();
 hooks.damage = () => { shake = 0.4; redFlash = 0.5; snd.hurt(); for (let i = 0; i < 8; i++) lens.push({ x: 120 + Math.random() * 720, y: 40 + Math.random() * 330, r: 18 + Math.random() * 40, t0: NOW }); };
 hooks.door = () => snd.door();
 hooks.armor = e => {
@@ -1140,6 +1168,11 @@ function sprite(c, e) {
   if (e._f > 0) { c.shadowColor = "rgba(200,28,20,.6)"; c.shadowBlur = 20; }
   if (e.gray > 0) c.filter = "grayscale(1) brightness(0.55)";
   c.drawImage(L, -210, -430); c.filter = "none"; c.restore();
+  if (e.fire !== undefined) {   // burning: flames up the body, kept big enough to read on far enemies, and a warm glow
+    const f = Math.max(ls, 0.32); c.save(); c.globalCompositeOperation = "lighter"; c.globalAlpha = born;
+    const gl = c.createRadialGradient(P.x, P.y - 130 * f, 0, P.x, P.y - 130 * f, 140 * f); gl.addColorStop(0, "rgba(255,120,30,.35)"); gl.addColorStop(1, "rgba(255,120,30,0)"); c.fillStyle = gl; c.fillRect(P.x - 140 * f, P.y - 270 * f, 280 * f, 280 * f);
+    tongues(c, P.x, P.y - 40 * ls, 4, 110 * f, 70 * f, 26 * f, 30 * f); tongues(c, P.x, P.y - 190 * ls, 3, 60 * f, 40 * f, 18 * f, 24 * f); c.restore(); if (Math.random() < 0.03) snd.crackle();
+  }
   { const hz = c.createRadialGradient(P.x, P.y - 140 * ls, 10, P.x, P.y - 140 * ls, 150 * ls); hz.addColorStop(0, "rgba(150,18,14," + 0.16 * born * body + ")"); hz.addColorStop(1, "rgba(150,18,14,0)"); c.fillStyle = hz; c.fillRect(P.x - 160 * ls, P.y - 300 * ls, 320 * ls, 320 * ls); }
   const ey = EYES[e.type];   // eyes show first, from far away in the dark, and dim once the body is lit
   if (ey && !(e.gray > 0)) { c.save(); c.globalCompositeOperation = "lighter"; c.globalAlpha = born * (1 - 0.45 * body); [ey[0], ey[1]].forEach(q => { const x = P.x + q[0] * ls, y = P.y + q[1] * ls, r = Math.max(6, 18 * ls), g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, ey[2]); g.addColorStop(1, "rgba(0,0,0,0)"); c.fillStyle = g; c.fillRect(x - r, y - r, 2 * r, 2 * r); }); c.restore(); }
@@ -1160,7 +1193,7 @@ function drawWord(c, word, idx, cx, cy, px, lock, a, left, edge) {
   if (left >= 0) { c.fillStyle = "#0a0a0a"; c.fillRect(x + 5, y + bh - 4, bw - 10, 2); c.fillStyle = left > 0.5 ? "#c4772a" : left > 0.25 ? "#b5501f" : "#a32218"; c.fillRect(x + 5, y + bh - 4, (bw - 10) * left, 2); }
   c.restore();
 }
-function plaque(c, e) { if (e.stagger > 0) return; const P = pos(e), ty = TYPES[e.type]; drawWord(c, e.word, e.idx, P.x, P.y - (e.type === "bat" ? 30 : e.lane === 1 ? 100 : 155) * P.s * P.k, Math.round(12 + 15 * P.s), G.lock === e && !(e.gray > 0), Math.min(1, (G.clock - (e.t0 === undefined ? e.born : e.t0)) / 0.6) * (e.gray > 0 ? 0.3 : 1), Math.max(0, 1 - (G.clock - e.born) / e.life), e.axes ? "#b04a4a" : (e.armor && !e.broken) || (ty.hybrid && e.stage === 1) ? "#9db4d0" : null); }
+function plaque(c, e) { if (e.stagger > 0) return; const P = pos(e), ty = TYPES[e.type]; drawWord(c, e.word, e.idx, P.x, P.y - (e.type === "bat" ? 30 : e.lane === 1 ? 100 : 155) * P.s * P.k, Math.round(12 + 15 * P.s), G.lock === e && !(e.gray > 0), Math.min(1, (G.clock - (e.t0 === undefined ? e.born : e.t0)) / 0.6) * (e.gray > 0 ? 0.3 : 1), Math.max(0, 1 - (G.clock - e.born) / e.life), e.fire !== undefined ? "#ff8a2a" : e.axes ? "#b04a4a" : (e.armor && !e.broken) || (ty.hybrid && e.stage === 1) ? "#9db4d0" : null); }
 function drawDoors(c) {
   const d = G.doors, z = Math.min(1, d.t / 1.6), s = 0.1 + 0.9 * (1 - Math.pow(1 - z, 3)); if (!DOORS) DOORS = buildDoors();
   bgFor(["sewer", "ossuary", "sewer2", "ossuary2"][Math.min(3, Math.floor(d.t / 0.4))]);   // build one background per 0.4 s, before you can type
@@ -1256,7 +1289,7 @@ function screens(c) {
     if (G.net.hosted) txt(c, G.level >= 0 ? "Single-stage runs are not saved to the leaderboard." : G.net.status, W / 2, 420, 17, G.net.retry ? "#8a1d12" : ink);
     txt(c, "ENTER for the title" + (G.net.hosted ? "      S  leaderboard" : "") + (G.net.retry ? "      R  retry save" : ""), W / 2, 452, 18, ink);
   } else if (G.state === "weapon") {
-    dark(0.7); title(c, "CHOOSE YOUR ARMS", 64, 44, "#b8985a"); txt(c, G.weaponThen === "seg" ? "Next: stage " + (G.seg + 2) + "  " + STAGES[G.seg + 1].name + ".   Looks only. Every weapon scores the same." : "Looks only. Every weapon scores the same.", W / 2, 100, 16, "#c9b98a");
+    dark(0.7); title(c, "CHOOSE YOUR ARMS", 64, 44, "#b8985a"); if (G.weaponThen === "seg") txt(c, "Next: stage " + (G.seg + 2) + "  " + STAGES[G.seg + 1].name, W / 2, 92, 14, "#a8987a"); txt(c, weaponDef().perk, W / 2, 112, 16, "#ffd27a");
     WEAPONS.forEach((w, i) => {
       const sel = w.id === G.weapon, x = 40 + i * 178, bob = sel ? Math.sin(NOW * 3) * 3 : 0;
       c.save(); c.globalAlpha = sel ? 1 : 0.55; rr(c, x, 130, 168, 310, 8); c.fillStyle = "rgba(22,17,10,.88)"; c.fill(); c.lineWidth = sel ? 3 : 1; c.strokeStyle = sel ? "#dcb457" : "#5a4a2a"; if (sel) { c.shadowColor = "#dcb457"; c.shadowBlur = 18; } c.stroke(); c.restore();
@@ -1469,7 +1502,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined" && document
       const keys = G.results.reduce((n, r) => n + r.s.keys, 0), wrong = G.results.reduce((n, r) => n + r.s.wrong, 0);
       const chars = G.results.reduce((n, r) => n + r.s.chars, 0), secs = G.results.reduce((n, r) => n + r.s.secs, 0);
       if (!hosted || G.level >= 0) return;   // only full runs go on the leaderboard
-      pending.push({ id: crypto.randomUUID(), version: "v48-1", mode: G.mode, score: G.final.total, accuracy: keys ? 100 * (keys - wrong) / keys : 100, wpm: secs ? chars / 5 / (secs / 60) : 0 });
+      pending.push({ id: crypto.randomUUID(), version: "v48-2", mode: G.mode, score: G.final.total, accuracy: keys ? 100 * (keys - wrong) / keys : 100, wpm: secs ? chars / 5 / (secs / 60) : 0 });
       storage.set("dt_pending_runs", JSON.stringify(pending)); submitScore();
     }
   }
