@@ -56,6 +56,7 @@ that a deployment or watcher is running; verify those separately.
 | `SOUNDS/` | Audio loaded from beside the HTML: stage music, `STAGE END`, `FINAL RESULTS`. The game runs silently without it. `GUNSHOT.*` are no longer used. |
 | `tools/stage_mapper.py` | Desktop tool (Python, tkinter, Pillow) for laying out a stage on its photo and saving it as stage JSON. |
 | `archive/` | Older versions (`v21`, `v31`, `v38`, `v47`), kept for reference. v21 is still served at its old URL. Opened from here they have no music. |
+| `web/` | Files hosting serves beside the game but the game does not need. `og.jpg` is the 1200x630 link preview image named by the `og:image` tags in the game's head; recapture it when the title screen changes. |
 | `server/worker.mjs`, `server/migrations/` | Hosted score API and D1 schema. |
 | `scripts/`, `tests/` | Host staging, the layout check and verification. |
 | `.github/workflows/host-game.yml` | Cloudflare production and isolated PR deployments. |

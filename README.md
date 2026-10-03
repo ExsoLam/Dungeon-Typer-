@@ -188,6 +188,7 @@ typing_dungeon_v48.html                the game, single file
 SOUNDS/                                music, loaded from beside the HTML
 archive/                               older versions (v21, v31, v38, v47), kept for reference
 tools/stage_mapper.py                  stage layout tool
+web/og.jpg                             link preview image for Discord, Slack and the like
 server/                                hosted score API (Cloudflare Worker) and D1 migrations
 scripts/, tests/                       host staging, the layout check and verification
 docs/HOSTING.md                        hosting, database setup and the playback loop

@@ -11,6 +11,7 @@ copyFileSync('archive/typing_dungeon_v21.html', out + '/public/typing_dungeon_v2
 cpSync('SOUNDS', out + '/public/SOUNDS', { recursive: true });
 copyFileSync('typing_dungeon_v48.html', out + '/public/typing_dungeon_v48.html');
 copyFileSync('typing_dungeon_v48.html', out + '/public/index.html');
+cpSync('web', out + '/public', { recursive: true });
 writeFileSync(out + '/wrangler.json', JSON.stringify({
   name: scope.startsWith('pr-') ? scope : 'play',
   main: '../server/worker.mjs', compatibility_date: '2026-10-01', workers_dev: true,
