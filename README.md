@@ -29,6 +29,7 @@ Opened as a file or from a static server, the game runs fully offline with no ne
 | Up / Down | Title screen: choose the mode, difficulty or stage row |
 | Left / Right | Title screen: change the chosen row. Weapon picker: choose a weapon (also 1 to 5) |
 | Tab | Title screen and leaderboard: switch mode (strict / original) |
+| H | Title screen: how to play (the full rules card; any key returns) |
 | N | Hosted game, title screen: change your player name |
 | S | Hosted game, title or final screen: open the leaderboard |
 | R | Hosted game, final screen: retry a score that failed to save |
