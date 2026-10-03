@@ -5,7 +5,7 @@ on:
   push:
     branches: [main]
     paths:
-      - typing_dungeon_v21.html
+      - archive/typing_dungeon_v21.html
       - typing_dungeon_v48.html
       - SOUNDS/**
       - web/**
@@ -22,7 +22,8 @@ concurrency:
   cancel-in-progress: false
 jobs:
   deploy:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    # Fork and Dependabot PRs get no secrets, so they skip the preview rather than fail.
+    if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
     runs-on: ubuntu-latest
     environment:
       name: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'production' }}

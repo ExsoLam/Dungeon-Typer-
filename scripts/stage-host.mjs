@@ -7,7 +7,7 @@ if (!/^[a-f0-9-]{36}$/.test(db)) throw new Error('Invalid D1 database ID');
 const out = resolve('.deploy');
 rmSync(out + '/public', { recursive: true, force: true });
 mkdirSync(out + '/public', { recursive: true });
-copyFileSync('typing_dungeon_v21.html', out + '/public/typing_dungeon_v21.html');
+copyFileSync('archive/typing_dungeon_v21.html', out + '/public/typing_dungeon_v21.html');
 cpSync('SOUNDS', out + '/public/SOUNDS', { recursive: true });
 copyFileSync('typing_dungeon_v48.html', out + '/public/typing_dungeon_v48.html');
 copyFileSync('typing_dungeon_v48.html', out + '/public/index.html');

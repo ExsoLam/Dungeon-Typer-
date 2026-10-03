@@ -370,6 +370,7 @@ function key(k) {
     if (k === "Enter") { if (N.hosted && !N.name && !N.guest) { N.draft = ""; N.err = ""; G.state = "name"; } else if (G.level >= 0) { G.weaponThen = "new"; G.state = "weapon"; } else newGame(); }
     else if (N.hosted && (k === "s" || k === "S")) openScores("title");
     else if (N.hosted && (k === "n" || k === "N")) { N.draft = N.name; N.err = ""; G.state = "name"; }
+    else if (k === "h" || k === "H") G.state = "rules";
     else if (k === "Tab") flip();
     else if (k === "ArrowUp" || k === "ArrowDown") G.menu = (G.menu + (k === "ArrowDown" ? 1 : 2)) % 3;
     else if (k === "ArrowLeft" || k === "ArrowRight") { const d = k === "ArrowRight" ? 1 : -1; if (G.menu === 1) step(d); else if (G.menu === 2) { const o = [-1].concat(STAGES.map((_, i) => i)), n = o.length; setLevel(o[(o.indexOf(G.level) + d + n) % n]); } else flip(); }
@@ -384,6 +385,7 @@ function key(k) {
     else if (k === "Escape" && G.weaponThen !== "seg") G.state = "title";
     return;
   }
+  if (G.state === "rules") { G.state = "title"; return; }
   if (G.state === "name") { nameKey(k); return; }
   if (G.state === "scores") {
     if (k === "Tab" || k.indexOf("Arrow") === 0) setMode(G.mode === "strict" ? "original" : "strict");
@@ -1201,22 +1203,44 @@ function title(c, s, y, size, col) { c.save(); c.shadowColor = col; c.shadowBlur
 function screens(c) {
   const dark = a => { c.fillStyle = "rgba(0,0,0," + a + ")"; c.fillRect(0, 0, W, H); };
   if (G.state === "title") {
-    dark(0.55); title(c, "TYPING OF THE DUNGEON", 120, 52, "#b8985a"); txt(c, "proof of concept  -  rules from The Typing of the Dead", W / 2, 168, 17, "#c9b98a");
-    ["Type the word on a monster to kill it. The first letter picks your target.", (CFG.CASE ? "Case and spaces count." : "Case and spaces are ignored (original rules).") + " Keys with no target are ignored.", "Speed against each word's par time sets your rank, A to E.",
-     "Good ranks fill the accumulator; each 100 raises p, and p raises the word tier.", "30 s unhurt: p+1.   A hit: p-2.   Esc pauses.   F2 mutes sound.", "Armored zombies need two words; Axemen need three, and a typo gets an axe thrown at you."].forEach((s, i) => txt(c, s, W / 2, 232 + i * 30, 19, "#e8e2d0"));
-        { const st = G.mode === "strict", M = G.menu, cur = (i, x, y) => { if (M === i) txt(c, ">", x, y, 24, "#ffd27a", "right", true); }, opt = (on, label, x, y) => txt(c, on ? "[ " + label + " ]" : label, x, y, on ? 21 : 17, on ? "#ffd27a" : "#8a806a", "left", true);
-      cur(0, 262, 404); txt(c, "MODE", 345, 404, 17, "#c9b98a", "right", true); opt(st, "STRICT", 370, 404); opt(!st, "ORIGINAL", 520, 404);
-      txt(c, st ? "case and spaces count" : "case and spaces ignored", 690, 404, 13, "#c9b98a", "left");
-      cur(1, 212, 430); txt(c, "DIFFICULTY", 345, 430, 17, "#c9b98a", "right", true);
-      [["easy", "EASY", 370], ["normal", "NORMAL", 485], ["hard", "HARD", 640]].forEach(d => opt(G.diff === d[0], d[1], d[2], 430));
-      txt(c, "score x" + ((st ? 1 : MODES.original.mult) * DIFFS[G.diff].mult).toFixed(2), 780, 430, 13, "#c9b98a", "left");
-      cur(2, 262, 456); txt(c, "LEVEL", 345, 456, 17, "#c9b98a", "right", true);
-      opt(true, "<  " + (G.level < 0 ? "ALL STAGES" : (G.level + 1) + "  " + STAGES[G.level].name) + "  >", 370, 456);
-      txt(c, { easy: "spawn rate -50%, fewer bats, +25% typing time", normal: "spawn rate -25%, fewer bats", hard: "full spawn rate" }[G.diff], W / 2, 484, 14, "#c9b98a");
-      txt(c, "UP / DOWN select   LEFT / RIGHT change   TAB mode", W / 2, 504, 12, "#9c9078");
-      if (G.best) txt(c, "best " + G.best, 930, 524, 13, "#dcb457", "right"); }
-    txt(c, "press ENTER to defend the keep", W / 2, 524, 22, "#fff", "center", true);
-    if (G.net.hosted) txt(c, G.net.name ? "PLAYER  " + G.net.name + "      N  change name      S  scores" : G.net.guest ? "playing as guest, scores are not saved      N  choose a name      S  scores" : "ENTER to choose your name", W - 24, 24, 15, "#dcb457", "right", true);
+    // Title: one focal title, a short tagline, three one-line hints, a settings card, one call to action.
+    dark(0.35); { const v = c.createRadialGradient(W / 2, 250, 120, W / 2, 270, 620); v.addColorStop(0, "rgba(0,0,0,.25)"); v.addColorStop(1, "rgba(0,0,0,.82)"); c.fillStyle = v; c.fillRect(0, 0, W, H); }
+    const gold = "#c9a95e", pale = "#e8dcc0", dim = "#9c8f74", st = G.mode === "strict", M = G.menu;
+    title(c, "TYPING OF THE DUNGEON", 92, 54, "#b8985a");
+    { const y = 128; c.strokeStyle = "rgba(184,152,90,.55)"; c.lineWidth = 1; c.beginPath(); c.moveTo(W / 2 - 190, y); c.lineTo(W / 2 - 14, y); c.moveTo(W / 2 + 14, y); c.lineTo(W / 2 + 190, y); c.stroke();
+      c.fillStyle = gold; c.beginPath(); c.moveTo(W / 2, y - 5); c.lineTo(W / 2 + 6, y); c.lineTo(W / 2, y + 5); c.lineTo(W / 2 - 6, y); c.closePath(); c.fill(); }
+    txt(c, "Type fast. Type true. The dead are coming.", W / 2, 152, 17, "#cdbd96");
+    [["TYPE", "the word to kill"], ["FIRST LETTER", "picks your target"], ["SPEED", "sets your rank, A to E"]].forEach((h, i) => {
+      const x = W / 2 + (i - 1) * 250; txt(c, h[0], x, 190, 13, gold, "center", true); txt(c, h[1], x, 208, 14, pale); });
+    // settings: one pill per row
+    const px = 220, py = 232, pw = 520, rowH = 54, pillH = 46, tri = (x, y, d, on) => { c.fillStyle = on ? "#ffd27a" : "rgba(156,143,116,.5)"; c.beginPath(); c.moveTo(x + 6 * d, y); c.lineTo(x - 4 * d, y - 7); c.lineTo(x - 4 * d, y + 7); c.closePath(); c.fill(); };
+    const lvl = G.level < 0 ? "ALL STAGES" : (G.level + 1) + "  " + STAGES[G.level].name;
+    [["MODE", st ? "STRICT" : "ORIGINAL", st ? "case and spaces count" : "case and spaces ignored, as in the original"],
+     ["DIFFICULTY", G.diff.toUpperCase(), { easy: "spawn rate -50%, fewer bats, +25% typing time", normal: "spawn rate -25%, fewer bats", hard: "full spawn rate" }[G.diff]],
+     ["LEVEL", lvl, G.level < 0 ? "the full run, ranked on the leaderboard" : "single stage practice, not ranked"]].forEach((r, i) => {
+      const y = py + i * rowH, on = M === i, vx = px + 330, R = 6;
+      rr(c, px, y, pw, pillH, R); c.fillStyle = on ? "rgba(52,40,20,.88)" : "rgba(14,11,8,.74)"; c.fill();
+      c.lineWidth = on ? 1.5 : 1; c.strokeStyle = on ? "rgba(220,180,87,.85)" : "rgba(184,152,90,.35)"; c.stroke();
+      txt(c, r[0], px + 30, y + pillH / 2, 14, on ? gold : dim, "left", true);
+      txt(c, r[1], vx, y + 17, on ? 20 : 18, on ? "#ffd27a" : pale, "center", true);
+      txt(c, r[2], vx, y + 35, 12, on ? "#cdbd96" : "rgba(156,143,116,.8)");
+      if (on) { c.font = "bold 20px Georgia,serif"; const hw = Math.min(170, c.measureText(r[1]).width / 2 + 22); tri(vx - hw, y + 17, -1, true); tri(vx + hw, y + 17, 1, true); }
+    });
+    txt(c, "score x" + ((st ? 1 : MODES.original.mult) * DIFFS[G.diff].mult).toFixed(2) + (G.best ? "      best " + G.best : ""), W / 2, py + rowH * 3 + 18, 14, "#dcb457", "center", true);
+    { const a = 0.7 + 0.3 * Math.sin(NOW * 3); c.save(); c.globalAlpha = a; c.shadowColor = "rgba(255,210,122,.6)"; c.shadowBlur = 14; txt(c, "press ENTER to defend the keep", W / 2, 470, 24, "#fff4dc", "center", true); c.restore(); }
+    txt(c, "UP / DOWN choose     LEFT / RIGHT change     TAB mode     H how to play     F2 sound", W / 2, 500, 12, dim);
+    txt(c, "rules after The Typing of the Dead", 18, 526, 11, "rgba(156,143,116,.6)", "left");
+    if (G.net.hosted) { const t = G.net.name ? G.net.name + "     N  name     S  scores" : G.net.guest ? "guest, scores not saved     N  name     S  scores" : "ENTER to choose your name";
+      c.font = "bold 13px Georgia,serif"; const tw = c.measureText(t).width + 28; rr(c, W - 16 - tw, 12, tw, 26, 13); c.fillStyle = "rgba(14,11,8,.7)"; c.fill(); c.lineWidth = 1; c.strokeStyle = "rgba(184,152,90,.45)"; c.stroke();
+      txt(c, t, W - 30, 25, 13, "#dcb457", "right", true); }
+  } else if (G.state === "rules") {
+    dark(0.7); parch(c, 110, 50, 740, 440); const ink = "#2b1d0e";
+    txt(c, "HOW TO PLAY", W / 2, 92, 30, "#7a1f12", "center", true);
+    ["Type the word on a monster to kill it. The first letter picks your target.", (CFG.CASE ? "Case and spaces count." : "Case and spaces are ignored (original rules).") + " Keys with no target are ignored.",
+     "Speed against each word's par time sets your rank, A to E.", "Good ranks fill the accumulator; each 100 raises p, and p raises the word tier.",
+     "30 s unhurt: p+1.   A hit: p-2.", "Armored zombies need two words; Axemen need three, and a typo gets an axe thrown at you.",
+     "Esc pauses.   F2 mutes sound."].forEach((t, i) => txt(c, t, W / 2, 148 + i * 40, 17, ink));
+    txt(c, "any key to return", W / 2, 456, 15, "#5a4426");
   } else if (G.state === "results") {
     dark(0.6); parch(c, 170, 36, 620, 468); const r = G.results[G.results.length - 1], s = r.s, ink = "#2b1d0e";
     txt(c, "STAGE RESULT", W / 2, 76, 32, "#7a1f12", "center", true); txt(c, r.name, W / 2, 108, 18, ink);

@@ -1,0 +1,53 @@
+name: PR hygiene
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review, labeled, unlabeled]
+permissions:
+  contents: read
+concurrency:
+  group: pr-hygiene-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - name: PR targets main
+        env:
+          BASE: ${{ github.base_ref }}
+        run: |
+          if [ "$BASE" != main ]; then
+            echo "::error::This PR targets $BASE. Retarget it to main: a PR merged into another branch never reaches production."
+            exit 1
+          fi
+      - name: Title is a conventional commit
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          # The squash merge uses the PR title as the commit subject on main.
+          if ! grep -qE '^(feat|fix|docs|ci|chore|refactor|test|perf|style|build)(\([a-z0-9-]+\))?!?: .+' <<< "$TITLE"; then
+            echo "::error::Start the PR title with a type, e.g. 'fix: lobber hitbox'. It becomes the commit on main."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Embedded art and word lists unchanged
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          hash() { git show "$1:typing_dungeon_v48.html" 2>/dev/null | awk 'length($0)>1000' | sha256sum | cut -c1-64; }
+          if [ "$(hash "$BASE_SHA")" != "$(hash "$HEAD_SHA")" ]; then
+            if [[ ",$LABELS," == *",assets-change,"* ]]; then
+              echo "::warning::Embedded art or word-list lines change in this PR (labelled assets-change)."
+            else
+              echo "::error::This PR changes the embedded art or word-list lines in typing_dungeon_v48.html. If intended, add the assets-change label."
+              exit 1
+            fi
+          fi
+      - name: Word lists stay in the game file
+        run: |
+          # No other tracked file may carry a long embedded data line.
+          bad=$(git ls-files -z | grep -zv '^typing_dungeon_v48.html$' | grep -zv '^archive/' | xargs -0 awk 'length($0)>20000 {print FILENAME; nextfile}' 2>/dev/null || true)
+          if [ -n "$bad" ]; then echo "::error::Long embedded data found outside the game file: $bad"; exit 1; fi

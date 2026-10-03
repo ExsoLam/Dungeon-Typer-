@@ -29,6 +29,7 @@ Opened as a file or from a static server, the game runs fully offline with no ne
 | Up / Down | Title screen: choose the mode, difficulty or stage row |
 | Left / Right | Title screen: change the chosen row. Weapon picker: choose a weapon (also 1 to 5) |
 | Tab | Title screen and leaderboard: switch mode (strict / original) |
+| H | Title screen: how to play (the full rules card; any key returns) |
 | N | Hosted game, title screen: change your player name |
 | S | Hosted game, title or final screen: open the leaderboard |
 | R | Hosted game, final screen: retry a score that failed to save |
@@ -157,15 +158,15 @@ The hosted game saves scores to a Cloudflare D1 database through a Worker (`serv
 - Scores are reported by the client, so this is a casual leaderboard rather than a cheat-proof one.
 - The boards show scoring version `v48-1`. Runs from the three-stage v21 game are kept in the database but not shown.
 
-Production is `https://play.dtyper.workers.dev`. Every code PR gets its own preview at `https://pr-N.dtyper.workers.dev` with a separate database, so test scores never reach the production board. Setup, deployment and the testing loop are in [HOSTING.md](HOSTING.md).
+Production is `https://play.dtyper.workers.dev`. Every code PR gets its own preview at `https://pr-N.dtyper.workers.dev` with a separate database, so test scores never reach the production board. Setup, deployment and the testing loop are in [docs/HOSTING.md](docs/HOSTING.md).
 
 ## Adding a stage
 
-Stages are data. `stage_mapper.py` lays one out on its background photo and saves it as JSON:
+Stages are data. `tools/stage_mapper.py` lays one out on its background photo and saves it as JSON:
 
 ```sh
 pip install pillow
-python stage_mapper.py
+python tools/stage_mapper.py
 ```
 
 File > New stage from image, then:
@@ -185,18 +186,19 @@ The JSON and the photo then go into the game file as a new stage (see `AGENTS.md
 ```
 typing_dungeon_v48.html                the game, single file
 SOUNDS/                                music, loaded from beside the HTML
+archive/                               older versions (v21, v31, v38, v47), kept for reference
+tools/stage_mapper.py                  stage layout tool
 web/og.jpg                             link preview image for Discord, Slack and the like
-stage_mapper.py                        stage layout tool
 server/                                hosted score API (Cloudflare Worker) and D1 migrations
-scripts/, tests/                       host staging and verification
-HOSTING.md                             hosting, database setup and the playback loop
+scripts/, tests/                       host staging, the layout check and verification
+docs/HOSTING.md                        hosting, database setup and the playback loop
 .github/workflows/check-game.yml       checks on every PR
 .github/workflows/host-game.yml        PR previews and production deploy on Cloudflare
-typing_dungeon_v21.html, v31, v38, v47 older versions, kept for reference
 ```
 
 ## Working on the game
 
+- Run `scripts/dev-setup.sh` once after cloning: it installs the shared git hooks and pruning. Work in a worktree per task and open PRs against `main` (AGENTS.md has the workflow).
 - No build and no dependencies for the game itself. Checks live in `tests/` and `scripts/check-game.py` (see AGENTS.md for the commands). The game logic is deliberately DOM free (`G`, `tierFor`, `pickFrom`, `key`, `kill`, `update`), so it can be driven headlessly; the browser glue, including music and the score client, is at the bottom of the file behind a `typeof window` check.
 - Art is embedded as base64 data URIs (the zombie sprite sheet, the Axeman and Lobber atlases, the pistol and weapon sprites, and the five stage photos), which is why the file is about 3.8 MB. Editing art means replacing those strings.
 - Word lists and their par values are embedded in `WORDSET`, taken from the original game. They are not published anywhere else in the repo, so treat them as data for this game rather than something to extract.
