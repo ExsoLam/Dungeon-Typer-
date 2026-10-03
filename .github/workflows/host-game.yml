@@ -46,7 +46,7 @@ jobs:
           if [ "$SCORE_SCOPE" = production ] && [ "$GITHUB_REF" != refs/heads/main ]; then
             echo 'Production deployment requires main.'; exit 1
           fi
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v7
