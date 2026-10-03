@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - typing_dungeon_v21.html
+      - typing_dungeon_v48.html
       - SOUNDS/**
       - server/**
       - scripts/**

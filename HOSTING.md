@@ -6,8 +6,9 @@ Wrangler is deployment tooling only; it is not a browser dependency.
 
 The Cloudflare account subdomain is `dtyper`. Production uses the `play` Worker
 at `https://play.dtyper.workers.dev`; PR previews use
-`https://pr-N.dtyper.workers.dev`. The game opens at `/`, and the original
-`/typing_dungeon_v21.html` entry point remains available. Changing the hostname
+`https://pr-N.dtyper.workers.dev`. The game (`typing_dungeon_v48.html`) opens at `/`
+and at `/typing_dungeon_v48.html`; the older `/typing_dungeon_v21.html` entry point
+remains available. Changing the hostname
 creates a fresh browser identity because local storage belongs to each origin.
 
 ## Release and playback loop
@@ -99,7 +100,9 @@ achieved by playing. This is a casual leaderboard, not cheat-proof competition.
 For a public launch with substantial traffic, add edge rate limits to player
 creation and submission; per-player limits can be bypassed by making identities.
 
-Version `v21-1` describes the current scoring rules. Change it in the Worker and
+Version `v48-1` describes the current scoring rules (five stages, difficulties,
+the stage ramp, Lobbers and fire). Runs saved under `v21-1` are kept but no longer
+shown. Only full runs are submitted; single-stage practice runs are not. Change it in the Worker and
 browser submission together if scoring changes; cosmetic changes keep it.
 Weekly boards and run-history screens can query the retained runs but are not yet
 exposed in this first release.
