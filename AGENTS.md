@@ -5,7 +5,7 @@ live state is in the issues and PRs, and the README covers the game itself.
 
 A browser typing game in one HTML file, with music in `SOUNDS/` and hosted scores in
 Cloudflare D1. Five stages with two bosses, strict and original modes, three difficulties,
-five cosmetic weapons, rules reverse engineered from The Typing of the Dead. The earlier
+five weapons with perks, rules reverse engineered from The Typing of the Dead. The earlier
 GitHub issue score pipeline has been retired.
 
 ## Start here: preserve the repo and local work
@@ -97,7 +97,7 @@ means updating this table and `scripts/check-layout.py` in the same PR.
 | Difficulties | `easy` (score x0.6), `normal` (x0.8), `hard` (x1.0). Not sent to the Worker; the multiplier is already in the score |
 | Stage data | `STAGES` (geometry, masks, effects, `cap`, `music`) and `SEGS` (the wave), same order, one entry per stage |
 | `localStorage` keys | `tod_poc_mode`, `tod_poc_diff`, `tod_poc_level`, best scores under `tod_poc_best` plus `_orig`, `_<diff>` (not for hard) and `_L<stage index>` suffixes; `dt_weapon`, `dt_player`, `dt_pending_runs` |
-| Hosted leaderboard | `server/worker.mjs`, scoring version `v48-1`, separate strict/original best scores in D1. Only full runs are submitted; single-stage runs are not. |
+| Hosted leaderboard | `server/worker.mjs`, scoring version `v48-2`, separate strict/original best scores in D1. Only full runs are submitted; single-stage runs are not. |
 
 ## Hard rules
 
@@ -160,8 +160,8 @@ Geometry model: enemy height grows linearly with feet y, from the zone height `h
 
 - No licence file. The word lists and par values are from The Typing of the Dead, and the art is embedded. Worth resolving before anything is reused.
 - `beginDoors()` never runs. The two-door branch after stage 1 (`beginDoors`, `updateDoors`, `BRANCH`, `segName`) has no call site, so the Sewers and Ossuary branch is dead code and the README does not document it. Either wire it up or delete it.
-- Hosted v48 submits completed full runs to the same-origin Worker under `v48-1`. Runs
-  saved under `v21-1` stay in D1 but no longer show on the boards. Offline file play
+- Hosted v48 submits completed full runs to the same-origin Worker under `v48-2`. Runs
+  saved under `v21-1` and `v48-1` stay in D1 but no longer show on the boards. Offline file play
   remains available; browser identity has no cross-device recovery and submitted
   scores are client-reported. Scores from the retired issue pipeline were not imported.
 - One board per mode mixes difficulties; the difficulty multiplier is in the score.

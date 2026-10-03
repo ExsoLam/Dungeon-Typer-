@@ -110,15 +110,15 @@ Final score is the stage scores plus 100 per life remaining (the results screen 
 
 ## Weapons
 
-| Weapon | Feel |
-| --- | --- |
-| Service pistol | The original. Short, loud, with a pixel muzzle flash |
-| Suppressed AR | Suppressor, rails, red dot and laser. Quiet thup, tiny flash, brass flying out |
-| Ray gun | Red and chrome retro blaster. Glowing teal core, a bolt and ring, a zap |
-| Double barrel | Two big flashes, a boom and rising smoke |
-| Crossbow | A bolt streaks away with a string twang |
+| Weapon | Perk | Feel |
+| --- | --- | --- |
+| Service pistol | None: the original game | Short, loud, with a pixel muzzle flash |
+| Suppressed AR | Every 4th correct key also takes a letter off the end of your target | Suppressor, rails, red dot and laser. Quiet thup, tiny flash, brass flying out |
+| Ray gun | Sets what it hits on fire: a burning word loses a letter from the end every quarter second | Red and chrome retro blaster. Glowing teal core, a bolt and ring, a zap |
+| Double barrel | Every 4th correct key takes a letter off each enemy around your target | Two big flashes, a boom and rising smoke |
+| Crossbow | Bolts pass through: every 4th correct key takes a letter off every enemy further back than your target | A bolt streaks away with a string twang |
 
-Every correct key fires the weapon, with recoil, a muzzle effect and a procedural shot. A wrong key or a key with no target fires nothing, and typing a prisoner's word frees them without a shot. Weapons are visual only: ranks, timing and scores are the same with every weapon.
+Every correct key fires the weapon, with recoil, a muzzle effect and a procedural shot. A wrong key or a key with no target fires nothing, and typing a prisoner's word frees them without a shot. Perks only take letters off the untyped end of a word, and never touch prisoners. A shorter word is quicker to finish, so perks lift your ranks; an enemy a perk finishes before you typed any of it scores rank E.
 
 ## Enemies
 
@@ -156,7 +156,7 @@ The hosted game saves scores to a Cloudflare D1 database through a Worker (`serv
 - Identity is a random token kept in your browser, so there is no login and no cross-device recovery. Names can be changed and need not be unique.
 - A failed save is queued in the browser and can be retried with R, including after a reload. Resubmitting the same run never creates a duplicate.
 - Scores are reported by the client, so this is a casual leaderboard rather than a cheat-proof one.
-- The boards show scoring version `v48-1`. Runs from the three-stage v21 game are kept in the database but not shown.
+- The boards show scoring version `v48-2`, which added weapon perks. Runs from earlier versions (`v48-1`, and the three-stage v21 game) are kept in the database but not shown.
 
 Production is `https://play.dtyper.workers.dev`. Every code PR gets its own preview at `https://pr-N.dtyper.workers.dev` with a separate database, so test scores never reach the production board. Setup, deployment and the testing loop are in [docs/HOSTING.md](docs/HOSTING.md).
 
@@ -203,7 +203,7 @@ docs/HOSTING.md                        hosting, database setup and the playback 
 - No build and no dependencies for the game itself. Checks live in `tests/` and `scripts/check-game.py` (see AGENTS.md for the commands). The game logic is deliberately DOM free (`G`, `tierFor`, `pickFrom`, `key`, `kill`, `update`), so it can be driven headlessly; the browser glue, including music and the score client, is at the bottom of the file behind a `typeof window` check.
 - Art is embedded as base64 data URIs (the zombie sprite sheet, the Axeman and Lobber atlases, the pistol and weapon sprites, and the five stage photos), which is why the file is about 3.8 MB. Editing art means replacing those strings.
 - Word lists and their par values are embedded in `WORDSET`, taken from the original game. They are not published anywhere else in the repo, so treat them as data for this game rather than something to extract.
-- Weapons live in the effects layer: the list is `WEAPONS` (engine side, so the picker is testable), `WEAPON_AT` sets where the picker opens in a full run, sprites are `PISTOL_SRC` and `WIMG.*`, and recoil and muzzle effects are in `WSTYLE`. To add a weapon, add a `WEAPONS` entry, a sound, a sprite and a `WSTYLE` entry.
+- Weapons: the list is `WEAPONS` and `WEAPON_AT` sets where the picker opens in a full run. Perks are engine side, tuned in `PERK` (keys per trim, burn rate, shotgun radius) and applied by `trim` and `perkShot`. Sprites are `PISTOL_SRC` and `WIMG.*`, and recoil and muzzle effects are in `WSTYLE`. To add a weapon, add a `WEAPONS` entry with its `perk` text, a sound, a sprite and a `WSTYLE` entry. A perk change alters scoring, so it bumps the scoring version.
 
 ## Provenance
 

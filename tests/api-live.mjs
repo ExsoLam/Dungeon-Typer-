@@ -10,7 +10,7 @@ const testName='API '+randomUUID().slice(0,8);
 const player=await call('/api/player',{name:testName});
 assert.equal(player.status,201);
 const token=player.data.token;
-const run={id:randomUUID(),mode:'strict',version:'v48-1',score:9876,accuracy:98,wpm:65};
+const run={id:randomUUID(),mode:'strict',version:'v48-2',score:9876,accuracy:98,wpm:65};
 assert.equal((await call('/api/scores',run)).status,401);
 assert.equal((await call('/api/scores',run,token,'https://foreign.example')).status,403);
 assert.equal((await call('/api/scores',{...run,mode:'normal'},token)).status,400);
