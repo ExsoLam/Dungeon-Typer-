@@ -6,7 +6,7 @@ The whole game is one file, `typing_dungeon_v21.html`: engine, renderer, procedu
 
 ## Play it
 
-**Online:** https://play.dtyper.workers.dev. Pick a name when the game opens and your runs are saved to a leaderboard for each mode.
+**Online:** https://pr-19.dtyper.workers.dev/. Pick a name when the game opens and your runs are saved to a leaderboard for each mode.
 
 **Offline:** open `typing_dungeon_v21.html` in a browser. Either double-click the file, drag it into a browser window, or serve the folder with anything static:
 
