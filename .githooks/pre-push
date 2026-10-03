@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Blocks pushes to main and force pushes, then runs the fast checks.
+# Bypass once with --no-verify (or ALLOW_FORCE=1 for a force push you mean).
+set -euo pipefail
+zero=0000000000000000000000000000000000000000
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [ "$remote_ref" = refs/heads/main ]; then
+    echo "pre-push: do not push to main. Push your branch and open a PR."; exit 1
+  fi
+  [ "$local_sha" = "$zero" ] && continue   # branch deletion
+  if [ "$remote_sha" != "$zero" ] && git cat-file -e "$remote_sha" 2>/dev/null \
+     && ! git merge-base --is-ancestor "$remote_sha" "$local_sha" && [ "${ALLOW_FORCE:-}" != 1 ]; then
+    echo "pre-push: $remote_ref would be force pushed and lose commits. Merge instead, or ALLOW_FORCE=1 if it is your own unshared branch."
+    exit 1
+  fi
+done
+behind=$(git rev-list --count HEAD..origin/main 2>/dev/null || echo 0)
+[ "$behind" -gt 20 ] && echo "pre-push: note, this branch is $behind commits behind origin/main. Merge origin/main soon."
+python3 scripts/check-layout.py >/dev/null
+python3 scripts/check-game.py >/dev/null
+node tests/game-flow.mjs >/dev/null
+node tests/validation.mjs >/dev/null
+echo "pre-push: checks passed"
