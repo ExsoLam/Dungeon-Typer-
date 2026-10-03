@@ -19,6 +19,7 @@ jobs:
       - run: python3 scripts/check-layout.py
       - run: python3 scripts/check-game.py
       - run: node --check server/worker.mjs
+      - run: node tests/relay.mjs
       - run: node tests/game-flow.mjs
       - run: node tests/validation.mjs
       - run: python3 tests/database.py

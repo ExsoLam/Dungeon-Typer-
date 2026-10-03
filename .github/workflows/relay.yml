@@ -1,0 +1,30 @@
+name: Deploy webhook relay
+on:
+  push:
+    branches: [main]
+    paths:
+      - relay/**
+      - .github/workflows/relay.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: relay
+  cancel-in-progress: false
+jobs:
+  relay:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - run: node tests/relay.mjs
+      - run: npx --yes wrangler@4 deploy --config relay/wrangler.json
+      - name: Verify
+        run: |
+          curl -sf --retry 10 --retry-delay 3 --retry-all-errors https://pr-events.dtyper.workers.dev/health | tee /tmp/health
+          grep -q '"configured":true' /tmp/health || echo "::warning::Relay is deployed but its secrets are not set yet. See docs/WEBHOOK.md."
