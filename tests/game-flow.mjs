@@ -75,8 +75,8 @@ for (const weapon of ['pistol', 'ar', 'ray', 'shotgun', 'xbow']) {
     const zs = Object.keys(STAGES[G.seg].zones), far = zs.map(z => ({ ...f, zone: z, lane: (a.lane + 2) % 3, word: 'mnopqrstuv', cut: 0 })).sort((p, q) => Math.abs(pos(q).x - pos(a).x) - Math.abs(pos(p).x - pos(a).x))[0];
     G.enemies.push(far); R.sideGap = Math.round(Math.abs(pos(far).x - pos(a).x));
     'abcd'.split('').forEach(k => key(k)); R.boltTarget = vis(a); R.boltBehind = vis(f); R.boltSide = vis(far);
-    // untyped enemy finished by a perk scores rank E
-    G.enemies = []; G.lock = null; let rk = -1; hooks.kill = o => { rk = o.rk; }; const c = mk('z'); trim(c); R.assistRank = rk; R.lastRank = RANKS.length - 1;
+    // untyped enemy finished by a perk scores rank B
+    G.enemies = []; G.lock = null; let rk = -1; hooks.kill = o => { rk = o.rk; }; const c = mk('z'); trim(c); R.assistRank = rk; R.bRank = RANKS.findIndex(r => r.k === "B");
     R.kept = a.word;
     globalThis.out = R;
   `, context);
@@ -91,6 +91,6 @@ for (const weapon of ['pistol', 'ar', 'ray', 'shotgun', 'xbow']) {
   assert.equal(R.boltBehind, 'uvwxyz', 'crossbow bolts trim an enemy behind the target on every key');
   assert.equal(R.boltSide, 'mnopqrstuv', 'crossbow misses an enemy further back but off to the side (' + R.sideGap + ' px)');
   assert.equal(R.kept, 'abcdefghij', 'trimmed letters stay in the word (drawn dimmed), so the plate does not shift');
-  assert.equal(R.assistRank, R.lastRank, 'a perk kill of an untyped enemy is rank E');
+  assert.equal(R.assistRank, R.bRank, 'a perk kill of an untyped enemy is rank B');
   console.log('weapon perk rules passed');
 }
