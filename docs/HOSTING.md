@@ -100,9 +100,11 @@ achieved by playing. This is a casual leaderboard, not cheat-proof competition.
 For a public launch with substantial traffic, add edge rate limits to player
 creation and submission; per-player limits can be bypassed by making identities.
 
-Version `v48-1` describes the current scoring rules (five stages, difficulties,
-the stage ramp, Lobbers and fire). Runs saved under `v21-1` are kept but no longer
-shown. Only full runs are submitted; single-stage practice runs are not. Change it in the Worker and
+Version `v48-2` describes the current scoring rules (five stages, difficulties,
+the stage ramp, Lobbers, fire and weapon perks). Runs saved under `v21-1` and `v48-1`
+are kept but no longer shown. Every completed run is submitted: full runs to the `all` board,
+single-stage runs to that stage's board (migration `0002_stage_boards.sql` adds the `stage` and
+`weapon` columns; existing rows become full pistol runs). Change it in the Worker and
 browser submission together if scoring changes; cosmetic changes keep it.
 Weekly boards and run-history screens can query the retained runs but are not yet
 exposed in this first release.

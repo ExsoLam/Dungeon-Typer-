@@ -5,7 +5,7 @@ live state is in the issues and PRs, and the README covers the game itself.
 
 A browser typing game in one HTML file, with music in `SOUNDS/` and hosted scores in
 Cloudflare D1. Five stages with two bosses, strict and original modes, three difficulties,
-five cosmetic weapons, rules reverse engineered from The Typing of the Dead. The earlier
+five weapons with perks, rules reverse engineered from The Typing of the Dead. The earlier
 GitHub issue score pipeline has been retired.
 
 ## Start here: preserve the repo and local work
@@ -53,7 +53,7 @@ that a deployment or watcher is running; verify those separately.
 | Path | What it is |
 | --- | --- |
 | `typing_dungeon_v48.html` | The game. Single file, no build, no dependencies. Engine, renderer, procedural sound effects, embedded art, stage photos, weapons and word lists. About 3.8 MB, mostly embedded assets. |
-| `SOUNDS/` | Audio loaded from beside the HTML: stage music, `STAGE END`, `FINAL RESULTS`. The game runs silently without it. `GUNSHOT.*` are no longer used. |
+| `SOUNDS/` | Audio loaded from beside the HTML: stage music, `STAGE END`, `FINAL RESULTS`. The game runs silently without it. `GUNSHOT.mp3` is the pistol's shot; `GUNSHOT.wav` is unused. |
 | `tools/stage_mapper.py` | Desktop tool (Python, tkinter, Pillow) for laying out a stage on its photo and saving it as stage JSON. |
 | `archive/` | Older versions (`v21`, `v31`, `v38`, `v47`), kept for reference. v21 is still served at its old URL. Opened from here they have no music. |
 | `web/` | Files hosting serves beside the game but the game does not need. `og.jpg` is the 1200x630 link preview image named by the `og:image` tags in the game's head; recapture it when the title screen changes. |
@@ -95,9 +95,9 @@ means updating this table and `scripts/check-layout.py` in the same PR.
 | Game entry point | `typing_dungeon_v48.html`, canvas 960x540 (play area 960x440, HUD below), scales to 16:9 |
 | Modes | `strict` (case and spaces count, score x1.0), `original` (both ignored, score x0.75) |
 | Difficulties | `easy` (score x0.6), `normal` (x0.8), `hard` (x1.0). Not sent to the Worker; the multiplier is already in the score |
-| Stage data | `STAGES` (geometry, masks, effects, `cap`, `music`) and `SEGS` (the wave), same order, one entry per stage |
+| Stage data | `STAGES` (`id`, geometry, masks, effects, `cap`, `music`) and `SEGS` (the wave), same order, one entry per stage |
 | `localStorage` keys | `tod_poc_mode`, `tod_poc_diff`, `tod_poc_level`, best scores under `tod_poc_best` plus `_orig`, `_<diff>` (not for hard) and `_L<stage index>` suffixes; `dt_weapon`, `dt_player`, `dt_pending_runs` |
-| Hosted leaderboard | `server/worker.mjs`, scoring version `v48-1`, separate strict/original best scores in D1. Only full runs are submitted; single-stage runs are not. |
+| Hosted leaderboard | `server/worker.mjs`, scoring version `v48-2`. Boards per mode and per stage: `all` for full runs, else a stage `id`. Each run records its weapon. |
 
 ## Hard rules
 
@@ -108,7 +108,7 @@ means updating this table and `scripts/check-layout.py` in the same PR.
 
 - **Edit the game with anchored patches, never a whole-file rewrite.** A full rewrite risks the base64 art and the word list, which are the parts nobody can regenerate. Change one unique string at a time.
 - **Keep it one file, no build, no dependencies.** No bundler, no CDN, no npm, no `package.json`. The value of this project is that the file opens in a browser and runs. The only outside files are the audio in `SOUNDS/`, and the game must still run, silently, when they are missing. If a change needs a toolchain, the change is wrong.
-- **Stages are data.** A stage is one `STAGES` entry, one `SEGS` entry at the same index, and one photo. Nothing else should depend on the stage count or a stage's index; per-stage behaviour goes in a field on its `STAGES` entry (as `cap` and `music` do). `WEAPON_AT` is the one exception: the weapon picker opens before that stage index in a full run.
+- **Stages are data.** A stage is one `STAGES` entry, one `SEGS` entry at the same index, and one photo. Nothing else should depend on the stage count or a stage's index; per-stage behaviour goes in a field on its `STAGES` entry (as `cap` and `music` do). A stage's `id` is its leaderboard key: never change or reuse one, and list every id in `STAGE_IDS` in `server/worker.mjs`. `WEAPON_AT` is the one exception: the weapon picker opens before that stage index in a full run.
 - **Keep the game logic free of the DOM.** `G`, `tierFor`, `pickFrom`, `key`, `kill`, `update` and the rest must not touch `document` or `window`, so they stay testable headlessly. Browser glue belongs at the bottom of the file behind the `typeof window` guard.
 - **Do not extract or republish the word lists.** They come from The Typing of the Dead (SEGA) and the repo has no licence file. Leave them embedded in the game; do not copy them into another file, repo or gist.
 - **Branch and open a PR against `main`; do not push to `main`.** Keep changes on a branch, and keep a PR to one concern. Never stack a PR on another PR's branch: a PR merged into a branch other than `main` never reaches production (this happened to #20). CI fails a PR whose base is not `main`; if you need another PR's work, wait for it to merge and branch from the new `main`.
@@ -152,7 +152,7 @@ For specific changes, "verified" means:
 2. Recompress the photo to JPEG (quality about 82) and add it as a new `const <KEY>IMG = ...` line beside the other stage photos, then register it in `STIMG`.
 3. Insert the `STAGES` entry, with `img: "<key>"`, at the right position, and the `SEGS` entry (name, `queue`, `gap`, `max`) at the same index. The JSON field names match.
 4. Set `music` explicitly on any stage whose track should not follow its position (the default is `STAGE <n>`), and set `cap` (minimum word tier input) to fit the difficulty ramp.
-5. Check `WEAPON_AT` still opens the picker where intended, and that `tests/game-flow.mjs` expects the new stage count.
+5. Give it a new `id`, add that id to `STAGE_IDS` in `server/worker.mjs`, check `WEAPON_AT` still opens the picker where intended, and update the stage count in `tests/game-flow.mjs`.
 
 Geometry model: enemy height grows linearly with feet y, from the zone height `h` at the spawn to `hend` at the attack line `yend`, so every zone should imply the same horizon. Enemies on walkways or stairs cannot be sized correctly. A mask hides an enemy only while the enemy's feet are above the mask's depth `y`. Keep `yend` above the HUD (about 81% of the image height).
 
@@ -160,8 +160,9 @@ Geometry model: enemy height grows linearly with feet y, from the zone height `h
 
 - No licence file. The word lists and par values are from The Typing of the Dead, and the art is embedded. Worth resolving before anything is reused.
 - `beginDoors()` never runs. The two-door branch after stage 1 (`beginDoors`, `updateDoors`, `BRANCH`, `segName`) has no call site, so the Sewers and Ossuary branch is dead code and the README does not document it. Either wire it up or delete it.
-- Hosted v48 submits completed full runs to the same-origin Worker under `v48-1`. Runs
-  saved under `v21-1` stay in D1 but no longer show on the boards. Offline file play
+- Hosted v48 submits every completed run to the same-origin Worker under `v48-2`: full runs to
+  `all`, single-stage runs to that stage's board. Runs saved under `v21-1` and `v48-1` stay in D1
+  but no longer show on the boards. Offline file play
   remains available; browser identity has no cross-device recovery and submitted
   scores are client-reported. Scores from the retired issue pipeline were not imported.
 - One board per mode mixes difficulties; the difficulty multiplier is in the score.

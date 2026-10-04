@@ -6,7 +6,7 @@ The game is one file, `typing_dungeon_v48.html`: engine, renderer, sound effects
 
 ## Play it
 
-**Online:** https://play.dtyper.workers.dev. Pick a name when the game opens and your full runs are saved to a leaderboard for each mode.
+**Online:** https://play.dtyper.workers.dev. Pick a name when the game opens and your runs are saved to leaderboards for each mode: one for full runs and one for each stage.
 
 **Offline:** keep `typing_dungeon_v48.html` and the `SOUNDS` folder side by side and open the HTML in a browser: double-click it, drag it into a browser window, or serve the folder with anything static:
 
@@ -51,7 +51,7 @@ Targeting: the first letter you type locks onto the monster whose word starts wi
 | normal | -25% | normal | fewer | 0.8 |
 | hard | full | normal | most | 1.0 |
 
-The stage row picks `ALL STAGES` (a full run) or a single stage for practice. Best scores are kept separately for each mode, difficulty and stage choice. Only full runs go on the hosted leaderboard.
+The stage row picks `ALL STAGES` (a full run) or a single stage for practice. Best scores are kept separately for each mode, difficulty and stage choice, and each stage has its own hosted leaderboard.
 
 ## How a run works
 
@@ -110,15 +110,15 @@ Final score is the stage scores plus 100 per life remaining (the results screen 
 
 ## Weapons
 
-| Weapon | Feel |
-| --- | --- |
-| Service pistol | The original. Short, loud, with a pixel muzzle flash |
-| Suppressed AR | Suppressor, rails, red dot and laser. Quiet thup, tiny flash, brass flying out |
-| Ray gun | Red and chrome retro blaster. Glowing teal core, a bolt and ring, a zap |
-| Double barrel | Two big flashes, a boom and rising smoke |
-| Crossbow | A bolt streaks away with a string twang |
+| Weapon | Perk | Feel |
+| --- | --- | --- |
+| Service pistol | None: the original game | Short, loud, with a pixel muzzle flash. Fires `SOUNDS/GUNSHOT.mp3` |
+| Suppressed AR | Every 4th correct key also takes a letter off the end of your target | Suppressor, rails, red dot and laser. Quiet thup, tiny flash, brass flying out |
+| Ray gun | Sets what it hits on fire: a burning word loses a letter from the end every quarter second | Red and chrome retro blaster. Glowing teal core, a bolt and ring, a zap |
+| Double barrel | Every correct key takes a letter off each enemy around your target | Two big flashes, a boom and rising smoke |
+| Crossbow | Bolts pass through: every correct key takes a letter off enemies right behind your target, in a narrow band along the line of fire from you through the target. The bolt that kills a target is a flaming one: it sets the ground alight where the target stood, and the first two enemies to walk in catch fire, losing a letter every 0.75 s (a third of the ray gun's rate) | A bolt streaks away with a string twang |
 
-Every correct key fires the weapon, with recoil, a muzzle effect and a procedural shot. A wrong key or a key with no target fires nothing, and typing a prisoner's word frees them without a shot. Weapons are visual only: ranks, timing and scores are the same with every weapon.
+Every correct key fires the weapon, with recoil, a muzzle effect and a shot: `GUNSHOT.mp3` for the pistol (synthesised if missing), synthesised for the others, all about as loud as the gunshot with the AR quieter. A wrong key or a key with no target fires nothing, and typing a prisoner's word frees them without a shot. Perks only take letters off the untyped end of a word, and never touch prisoners. Trimmed letters stay on the word plate, dimmed and struck through, so nothing moves while you type. A shorter word is quicker to finish, so perks lift your ranks; an enemy a perk finishes before you typed any of it scores rank A.
 
 ## Enemies
 
@@ -137,13 +137,14 @@ Every correct key fires the weapon, with recoil, a muzzle effect and a procedura
 
 ## Sound
 
-Sound effects (shots, hits, armour clangs, explosions, fire, the heartbeat when something is close) are synthesised with Web Audio. Music is in `SOUNDS/`:
+Sound effects (hits, armour clangs, explosions, fire, the heartbeat when something is close) are synthesised with Web Audio. Music is in `SOUNDS/`:
 
 | File | Plays |
 | --- | --- |
 | `STAGE 1.mp3`, `STAGE 2.mp3`, `STAGE 3.mp3` | During a stage, looped. The Supply Corridor, Control Room and Bonfire Gate use `STAGE 1`, the Courtyard `STAGE 2`, the Crypt `STAGE 3` |
 | `STAGE END.mp3` | On each stage results screen and the mid-run weapon picker, looped |
 | `FINAL RESULTS.mp3` | On the final score screen, once |
+| `GUNSHOT.mp3` | The service pistol's shot |
 
 Music pauses with the game, drops to 40% on the game over screen, and fades out over half a second between tracks. A missing file is skipped silently.
 
@@ -152,11 +153,11 @@ Music pauses with the game, drops to 40% on the game over screen, and fades out 
 The hosted game saves scores to a Cloudflare D1 database through a Worker (`server/worker.mjs`).
 
 - The first time the hosted game opens it asks for a name (Esc plays as a guest). Press **N** on the title to change it and **S** on the title or final screen to open the leaderboard, which is drawn in the game itself.
-- Each mode has its own all-time board, showing each player's best full run. Tied scores share a rank, and the top 100 are shown. Single-stage runs are not submitted.
+- Each mode has six all-time boards: ALL STAGES for full runs, and one per stage for single-stage runs. Each shows every player's best run with the weapon used. Tied scores share a rank, and the top 100 are shown. On the leaderboard, Left / Right changes board and Tab changes mode; S opens the board for the title's stage choice.
 - Identity is a random token kept in your browser, so there is no login and no cross-device recovery. Names can be changed and need not be unique.
 - A failed save is queued in the browser and can be retried with R, including after a reload. Resubmitting the same run never creates a duplicate.
 - Scores are reported by the client, so this is a casual leaderboard rather than a cheat-proof one.
-- The boards show scoring version `v48-1`. Runs from the three-stage v21 game are kept in the database but not shown.
+- The boards show scoring version `v48-2`, which added weapon perks and per-stage boards. Runs from earlier versions (`v48-1`, and the three-stage v21 game) are kept in the database but not shown.
 
 Production is `https://play.dtyper.workers.dev`. Every code PR gets its own preview at `https://pr-N.dtyper.workers.dev` with a separate database, so test scores never reach the production board. Setup, deployment and the testing loop are in [docs/HOSTING.md](docs/HOSTING.md).
 
@@ -203,7 +204,7 @@ docs/HOSTING.md                        hosting, database setup and the playback 
 - No build and no dependencies for the game itself. Checks live in `tests/` and `scripts/check-game.py` (see AGENTS.md for the commands). The game logic is deliberately DOM free (`G`, `tierFor`, `pickFrom`, `key`, `kill`, `update`), so it can be driven headlessly; the browser glue, including music and the score client, is at the bottom of the file behind a `typeof window` check.
 - Art is embedded as base64 data URIs (the zombie sprite sheet, the Axeman and Lobber atlases, the pistol and weapon sprites, and the five stage photos), which is why the file is about 3.8 MB. Editing art means replacing those strings.
 - Word lists and their par values are embedded in `WORDSET`, taken from the original game. They are not published anywhere else in the repo, so treat them as data for this game rather than something to extract.
-- Weapons live in the effects layer: the list is `WEAPONS` (engine side, so the picker is testable), `WEAPON_AT` sets where the picker opens in a full run, sprites are `PISTOL_SRC` and `WIMG.*`, and recoil and muzzle effects are in `WSTYLE`. To add a weapon, add a `WEAPONS` entry, a sound, a sprite and a `WSTYLE` entry.
+- Weapons: the list is `WEAPONS` and `WEAPON_AT` sets where the picker opens in a full run. Perks are engine side, tuned in `PERK` (keys per trim, burn rate, shotgun radius) and applied by `trim` and `perkShot`. Sprites are `PISTOL_SRC` and `WIMG.*`, and recoil and muzzle effects are in `WSTYLE`. To add a weapon, add a `WEAPONS` entry with its `perk` text, a sound, a sprite, a `WSTYLE` entry and its id in `WEAPON_IDS` in `server/worker.mjs`. A perk change alters scoring, so it bumps the scoring version.
 
 ## Provenance
 

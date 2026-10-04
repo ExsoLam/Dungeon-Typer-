@@ -125,21 +125,22 @@ const TYPES = {
 /* stages, one wave each (SEGS[i] is the wave of STAGES[i]). Per stage: a photo, zone -> lane paths in image pixels, masks for foreground objects,
    effects (fx: a built-in FX name, or data { glows: [[x, y, r, alpha]], flames: [[x, y, size]], fog: [y, alpha, span] }),
    optional cap (minimum word-tier input, sel_cap) and music (file name in SOUNDS, default "STAGE <n>").
+   id is the stage's leaderboard key; it must also be listed in STAGE_IDS in server/worker.mjs.
    A zone is (x, y, h) = feet position and enemy height (px) at the spawn point; heights grow linearly with feet y up to hend at the lanes (yend). */
 const STAGES = [
-  { name: "THE SUPPLY CORRIDOR", cap: 0, img: "stc", iw: 1408, ih: 768, xc: 795, yend: 764, hend: 656, lanes: [493, 755, 773], boss: "", fx: { glows: [[368, 71, 132, 0.28], [1012, 168, 56, 0.28], [814, 94, 130, 0.28], [677, 203, 36, 0.28]], flames: [], fog: null }, music: "STAGE 1", w: { zone1: 1, zone2: 1, zone3: 1 },
+  { name: "THE SUPPLY CORRIDOR", id: "corridor", cap: 0, img: "stc", iw: 1408, ih: 768, xc: 795, yend: 764, hend: 656, lanes: [493, 755, 773], boss: "", fx: { glows: [[368, 71, 132, 0.28], [1012, 168, 56, 0.28], [814, 94, 130, 0.28], [677, 203, 36, 0.28]], flames: [], fog: null }, music: "STAGE 1", w: { zone1: 1, zone2: 1, zone3: 1 },
     zones: { zone1: { x: 278, y: 600, h: 395, pref: [0] }, zone2: { x: 652, y: 405, h: 154, wp: [[739, 428]], pref: [1] }, zone3: { x: 988, y: 443, h: 199, wp: [[881, 479]], pref: [2] } },
     masks: [{ y: 597, poly: [[948, 240], [940, 401], [931, 396], [925, 527], [943, 537], [942, 546], [1015, 582], [1030, 597], [1030, 216]] }, { y: 763, poly: [[1030, 216], [1030, 597], [1191, 763], [1222, 161]] }, { y: 763, poly: [[0, 92], [287, 156], [326, 763], [4, 763]] }, { y: 587, poly: [[591, 376], [678, 379], [679, 523], [584, 587], [496, 569], [483, 405]] }, { y: 493, poly: [[671, 419], [702, 424], [702, 474], [678, 493]] }, { y: 410, poly: [[672, 229], [674, 379], [476, 391], [490, 90]] }] },
-  { name: "THE CONTROL ROOM", cap: 25, img: "stb", iw: 1024, ih: 559, xc: 512, yend: 532, hend: 201, lanes: [425, 512, 523], boss: "zone3", fx: { glows: [], flames: [], fog: null }, music: "STAGE 1", w: { zone1: 1, zone2: 1, zone3: 1 },
+  { name: "THE CONTROL ROOM", id: "control", cap: 25, img: "stb", iw: 1024, ih: 559, xc: 512, yend: 532, hend: 201, lanes: [425, 512, 523], boss: "zone3", fx: { glows: [], flames: [], fog: null }, music: "STAGE 1", w: { zone1: 1, zone2: 1, zone3: 1 },
     zones: { zone1: { x: 376, y: 163, h: 62, wp: [[378, 341]], pref: [0] }, zone2: { x: 642, y: 156, h: 58, wp: [[811, 329], [797, 427]], pref: [2] }, zone3: { x: 641, y: 337, h: 84, pref: [2] } },
     masks: [{ y: 458, poly: [[745, 335], [812, 330], [940, 338], [948, 455], [828, 458], [800, 428], [745, 400]] }] },
-  { name: "THE BONFIRE GATE", cap: 35, img: "gate", music: "STAGE 1", iw: 1376, ih: 768, xc: 930, yend: 606, hend: 285, lanes: [450, 960, 1090], boss: "gate", fx: "gate", w: { gate: 3, stairs: 3, arcade: 2 },
+  { name: "THE BONFIRE GATE", id: "gate", cap: 35, img: "gate", music: "STAGE 1", iw: 1376, ih: 768, xc: 930, yend: 606, hend: 285, lanes: [450, 960, 1090], boss: "gate", fx: "gate", w: { gate: 3, stairs: 3, arcade: 2 },
     zones: { gate: { x: 950, y: 548, h: 85, pref: [1, 2] }, stairs: { x: 655, y: 440, h: 105, wp: [[580, 598]], pref: [0] }, arcade: { x: 583, y: 432, h: 92, wp: [[620, 446], [570, 598]], pref: [0] } },
     masks: [{ y: 690, poly: [[600, 650], [640, 640], [655, 580], [670, 520], [700, 470], [735, 462], [765, 520], [790, 580], [812, 610], [865, 650], [868, 690], [602, 690]] }] },
-  { name: "THE COURTYARD", cap: 55, img: "clo", music: "STAGE 2", iw: 1376, ih: 768, xc: 930, yend: 612, hend: 300, lanes: [770, 930, 1090], boss: "gateway", fx: "clo", w: { gateway: 3, leftB: 2, leftD: 2, right: 2 },
+  { name: "THE COURTYARD", id: "courtyard", cap: 55, img: "clo", music: "STAGE 2", iw: 1376, ih: 768, xc: 930, yend: 612, hend: 300, lanes: [770, 930, 1090], boss: "gateway", fx: "clo", w: { gateway: 3, leftB: 2, leftD: 2, right: 2 },
     zones: { gateway: { x: 935, y: 523, h: 85, pref: [1, 0, 2] }, leftB: { x: 435, y: 538, h: 120, pref: [0, 1] }, leftD: { x: 715, y: 515, h: 85, pref: [0, 1] }, right: { x: 1135, y: 545, h: 120, pref: [2, 1] } },
     masks: [{ y: 594, poly: [[590, 312], [662, 308], [672, 350], [668, 430], [704, 500], [722, 566], [692, 596], [556, 596], [556, 520], [588, 512], [588, 420]] }] },
-  { name: "THE CRYPT", cap: 75, img: "cry", music: "STAGE 3", iw: 1024, ih: 572, xc: 660, yend: 462, hend: 228, lanes: [470, 600, 730], boss: "nearR", fx: "torch", w: { torch: 3, nearR: 3, center: 1, farL: 1 },
+  { name: "THE CRYPT", id: "crypt", cap: 75, img: "cry", music: "STAGE 3", iw: 1024, ih: 572, xc: 660, yend: 462, hend: 228, lanes: [470, 600, 730], boss: "nearR", fx: "torch", w: { torch: 3, nearR: 3, center: 1, farL: 1 },
     zones: { farL: { x: 375, y: 340, h: 90, wp: [[632, 352]], pref: [0, 1, 2] }, center: { x: 513, y: 336, h: 85, wp: [[622, 356]], pref: [1, 0, 2] }, torch: { x: 666, y: 338, h: 87, pref: [1, 2, 0] }, nearR: { x: 854, y: 372, h: 130, wp: [[772, 382]], pref: [2, 1, 0] } },
     masks: [{ y: 448, poly: [[272, 356], [300, 345], [480, 338], [498, 350], [502, 392], [512, 424], [512, 450], [272, 450]] }, { y: 398, poly: [[480, 320], [520, 316], [592, 318], [592, 352], [580, 400], [540, 402], [500, 396], [480, 350]] }, { y: 400, poly: [[795, 352], [1024, 352], [1024, 560], [795, 560]] }] }
 ];
@@ -155,8 +156,8 @@ function pickZone(w) { const t = STAGES[w].w, ks = Object.keys(t); let r = Math.
 
 /* ---- game state (DOM-free so it can be tested headless) ---- */
 const G = { level: -1, diff: "hard", menu: 0, mode: "strict", state: "title", seg: 0, clock: 0, p: 3, acc: 0, calm: 0, lives: 3, continues: 5, cap: 0, enemies: [], queue: [], nextSpawn: 0,
-  lock: null, msgs: [], st: null, results: [], flash: 0, best: 0, final: null, tier: 0, buf: null, branch: null, doors: null, daggers: [], blasts: [], burn: false, weapon: "pistol", weaponThen: "",
-  net: { hosted: false, name: "", draft: "", guest: false, busy: false, loading: false, err: "", status: "", retry: false, board: [], best: 0, boardMode: "" } };
+  lock: null, msgs: [], st: null, results: [], flash: 0, best: 0, final: null, tier: 0, buf: null, branch: null, doors: null, daggers: [], blasts: [], patches: [], burn: false, weapon: "pistol", weaponThen: "",
+  net: { hosted: false, name: "", draft: "", guest: false, busy: false, loading: false, err: "", status: "", retry: false, board: [], best: 0, boardKey: "", boardStage: -1 } };
 const clampP = v => Math.max(0, Math.min(15, v));
 function msg(s) { G.msgs.push(s); if (G.msgs.length > 2) G.msgs.shift(); }
 function bumpP(d) { G.p = clampP(G.p + d); }
@@ -168,7 +169,7 @@ function newGame() {
 }
 function startSegment(i) {
   if (typeof clearFx === "function") clearFx();
-  G.seg = i; G.queue = SEGS[i].queue.split(" "); G.enemies = []; G.lock = null; G.daggers = []; G.blasts = []; G.burn = false; G.nextSpawn = G.clock + 2.8;
+  G.seg = i; G.queue = SEGS[i].queue.split(" "); G.enemies = []; G.lock = null; G.daggers = []; G.blasts = []; G.patches = []; G.burn = false; G.perkN = 0; G.nextSpawn = G.clock + 2.8;
   G.st = newStats();   // stats per stage
   G.cap = STAGES[i].cap || 0; G.state = "play"; G.wave = { name: SEGS[i].name, t0: G.clock }; msg("Wave " + (i + 1) + ": " + SEGS[i].name);
 }
@@ -201,10 +202,10 @@ function loseLife() {
   G.lives--; bumpP(-2); hook("damage"); G.calm = 0; G.flash = 0.35; G.st.lost++; msg("You are hit! p-2");
   if (G.lives <= 0) { G.state = "over"; msg("You fall..."); }
 }
-function kill(e) {
+function kill(e, assisted) {   // assisted: a weapon perk finished the word
   if (G.burn) { G.burn = false; msg("Fire out"); hook("douse"); }   // finishing a target clean while on fire puts it out
-  const secs = e.firstT === null ? 0 : e.lastT - e.firstT, rk = rankOf(secs, e.value), R = RANKS[rk], s = G.st;
-  hook("kill", { e, rk }); s.words++; s.ranks[rk]++; s.rankPts += R.pts; s.base += 15; s.bonus += ((1 + 0.1 * G.p) * MODES[G.mode].mult * DIFFS[G.diff].mult - 1) * (R.pts + 15); s.chars += e.word.length - 1; s.secs += secs;
+  const secs = e.firstT === null ? 0 : e.lastT - e.firstT, rk = assisted && e.firstT === null ? PERK.rank : rankOf(secs, e.value), R = RANKS[rk], s = G.st;
+  hook("kill", { e, rk }); s.words++; s.ranks[rk]++; s.rankPts += R.pts; s.base += 15; s.bonus += ((1 + 0.1 * G.p) * MODES[G.mode].mult * DIFFS[G.diff].mult - 1) * (R.pts + 15); s.chars += Math.max(0, wordEnd(e) - 1); e.cut = 0; s.secs += secs;
   G.acc += R.acc; if (G.acc >= 100) { G.acc = 0; bumpP(1); msg("Accumulator full: p+1"); }
   if (TYPES[e.type].citizen) { s.rescued++; msg("Prisoner rescued! +150"); }
   else msg(e.word.slice(0, 28) + " -> rank " + R.k + " +" + R.pts);
@@ -303,6 +304,7 @@ function update(dt) {
     if (e._sumCool > 0) e._sumCool -= dt;
     if (e.gray > 0) { e.gray -= dt; e.born += dt; }
     if (TYPES[e.type].auto) grenadierTick(e);
+    if (e.fire !== undefined && !(e.stagger > 0) && !(e.gray > 0) && (e.fire -= dt) <= 0) { e.fire += e.burnRate || PERK.burn; trim(e); if (!G.enemies.includes(e)) continue; }   // ray gun: burning words lose a letter every PERK.burn s
     if (G.clock - e.born < e.life) continue;
     if (G.lock === e) G.lock = null;
     if (TYPES[e.type].citizen) { G.st.lost++; msg("The prisoner is lost..."); G.enemies.splice(G.enemies.indexOf(e), 1); }
@@ -316,6 +318,16 @@ function update(dt) {
     const d = G.daggers[i]; d.t += dt;
     if (d.grenade && !d.rel && d.t >= d.wind) { d.rel = true; hook("release", d); }
     if (d.t >= d.dur) { G.daggers.splice(i, 1); if (d.grenade) hook("boom", { player: true }); loseLife(); if (G.state === "over") return; if (d.grenade && !G.burn) { G.burn = true; msg("You are on fire! Finish your next target clean"); hook("ignite"); } }
+  }
+  for (let i = G.patches.length - 1; i >= 0; i--) {   // crossbow ground fire: the first PERK.uses enemies to walk in catch fire
+    const p = G.patches[i], rx = PERK.patch * p.s + 10, ry = rx * 0.35;
+    for (const x of G.enemies) {
+      if (p.uses <= 0 || p.hit.includes(x) || TYPES[x.type].bat || TYPES[x.type].citizen) continue;
+      const Q = pos(x), dx = (Q.x - p.x) / rx, dy = (Q.y - p.y) / ry;
+      if (dx * dx + dy * dy > 1) continue;
+      p.hit.push(x); p.uses--; if (x.fire === undefined) { x.fire = x.burnRate = PERK.xburn; hook("aflame", x); }
+    }
+    if (p.uses <= 0) { G.patches.splice(i, 1); hook("patchout", p); }
   }
   for (let i = G.blasts.length - 1; i >= 0; i--) { const b = G.blasts[i]; b.t += dt; if (b.t >= b.fuse) { G.blasts.splice(i, 1); detonate(b); } }
   if (!G.queue.length && !G.enemies.length && !G.blasts.length) finishSegment();
@@ -341,19 +353,53 @@ function doorKey(k) {
     if (d.idx[i] >= d.words[i].w.length) { d.chosen = i; d.open = 0; msg(BRANCH[d.ids[i]].name + " it is..."); hook("door"); }
   } else G.st.wrong++;
 }
-/* ---- weapons: looks only. Scoring, timing and ranks never read G.weapon. The picker opens before a single-stage run and,
-   in a full run, before stage WEAPON_AT + 1 (after the Control Room boss). ---- */
+/* ---- weapons. The picker opens before a single-stage run and, in a full run, before stage WEAPON_AT + 1 (after the Control
+   Room boss). Each weapon but the pistol has a perk (see PERK below); the pistol is the plain original game. ---- */
 const WEAPONS = [
-  { id: "pistol", name: "SERVICE PISTOL", note: "Reliable. Loud. Yours.", snd: "pistol" },
-  { id: "ar", name: "SUPPRESSED AR", note: "Whisper quiet. Fully kitted.", snd: "ar" },
-  { id: "ray", name: "RAY GUN", note: "Atomic. Slightly illegal.", snd: "ray" },
-  { id: "shotgun", name: "DOUBLE BARREL", note: "Subtle it is not.", snd: "dbl" },
-  { id: "xbow", name: "CROSSBOW", note: "Silent. Medieval. Efficient.", snd: "twang" }
+  { id: "pistol", name: "SERVICE PISTOL", note: "Reliable. Loud. Yours.", snd: "pistol", perk: "No tricks: the original game." },
+  { id: "ar", name: "SUPPRESSED AR", note: "Whisper quiet. Fully kitted.", snd: "ar", perk: "Every 4th key also takes a letter off the end of your target." },
+  { id: "ray", name: "RAY GUN", note: "Atomic. Slightly illegal.", snd: "ray", perk: "Sets what it hits on fire: a burning word loses a letter every 1/4 s." },
+  { id: "shotgun", name: "DOUBLE BARREL", note: "Subtle it is not.", snd: "dbl", perk: "Every key also takes a letter off each enemy around your target." },
+  { id: "xbow", name: "CROSSBOW", note: "Silent. Medieval. Efficient.", snd: "twang", perk: "Bolts pass through enemies right behind your target; a killing bolt sets the ground alight." }
 ];
 const WEAPON_AT = 2;
+/* ---- weapon perks. A trim takes one letter off the end of the untyped part of a word (and any space left dangling); a word
+   trimmed down to what you have typed is finished. Crossbow: the key that kills a target fires a flaming bolt that leaves a
+   ground fire (G.patches) PERK.patch * scale wide where it stood; the first PERK.uses enemies to walk into it catch fire and lose
+   a letter every PERK.xburn s (a third of the ray gun's rate), then it goes out. Bats and prisoners pass over it.
+   Kills a perk finishes on an enemy you never typed score rank PERK.rank (0 = A).
+   every: correct keys per AR trim (the shotgun and crossbow trim on every correct key). burn: seconds per letter while a word burns (ray gun).
+   splash: shotgun radius around the target, in screen pixels at full scale. bolt: crossbow half-width at full scale; the bolt
+   flies from the bottom centre of the screen through the target's chest and hits every enemy further back whose chest lies within
+   bolt * its own scale (+12 px) of that line. ---- */
+const PERK = { every: 4, burn: 0.25, splash: 400, bolt: 60, rank: 0, xburn: 0.75, patch: 70, uses: 2 };
+const wordEnd = e => e.word.length - (e.cut || 0);   // letters past the end were trimmed off; they stay drawn (dimmed) so nothing shifts
+function trim(e) {
+  if (!G.enemies.includes(e) || e.stagger > 0 || e.gray > 0) return;
+  let n = wordEnd(e) - 1;
+  while (n > e.idx && e.word[n - 1] === " ") n--;
+  e.cut = e.word.length - Math.max(e.idx, n); hook("trim", e);
+  if (e.idx >= wordEnd(e)) kill(e, true);
+}
+function perkShot(e) {   // runs on every PERK.every-th correct key, with e the target just hit (it may have died from that key)
+  const w = G.weapon, P = pos(e);
+  if (w === "ar") { trim(e); return; }
+  if (w !== "shotgun" && w !== "xbow") return;
+  const ax = P.x - CX, ay = P.y - 150 * P.s * P.k - H, al = Math.hypot(ax, ay) || 1;   // crossbow line: screen bottom centre -> target chest
+  G.enemies.slice().forEach(x => {
+    if (x === e || TYPES[x.type].citizen) return;
+    const Q = pos(x);
+    if (w === "shotgun") { if (Math.hypot(Q.x - P.x, Q.y - P.y) < PERK.splash * Math.max(P.s, Q.s) + 80) trim(x); return; }
+    if (Q.s >= P.s) return;   // crossbow: only further back than the target
+    const off = Math.abs((Q.x - CX) * ay - (Q.y - 150 * Q.s * Q.k - H) * ax) / al;   // distance of its chest from the bolt line
+    if (off < PERK.bolt * Q.s * Q.k + 12) trim(x);
+  });
+}
 const weaponDef = () => WEAPONS.find(w => w.id === G.weapon) || WEAPONS[0];
 function setWeapon(i) { G.weapon = WEAPONS[(i + WEAPONS.length) % WEAPONS.length].id; hook("weapon", G.weapon); }
-function openScores(from) { G.back = from; G.state = "scores"; hook("loadBoard"); }
+const boardId = i => i < 0 ? "all" : STAGES[i].id;   // leaderboards: "all" for full runs, else a stage id
+const boardName = i => i < 0 ? "ALL STAGES" : (i + 1) + "  " + STAGES[i].name;
+function openScores(from) { G.back = from; G.net.boardStage = G.level; G.state = "scores"; hook("loadBoard"); }
 function nameKey(k) {
   const N = G.net;
   if (N.busy) return;
@@ -388,7 +434,8 @@ function key(k) {
   if (G.state === "rules") { G.state = "title"; return; }
   if (G.state === "name") { nameKey(k); return; }
   if (G.state === "scores") {
-    if (k === "Tab" || k.indexOf("Arrow") === 0) setMode(G.mode === "strict" ? "original" : "strict");
+    if (k === "Tab" || k === "ArrowUp" || k === "ArrowDown") setMode(G.mode === "strict" ? "original" : "strict");
+    else if (k === "ArrowLeft" || k === "ArrowRight") { const n = STAGES.length + 1; G.net.boardStage = (G.net.boardStage + 1 + (k === "ArrowRight" ? 1 : -1) + n) % n - 1; hook("loadBoard"); }
     else if (k === "Escape" || k === "Enter") G.state = G.back || "title";
     return;
   }
@@ -425,7 +472,13 @@ function key(k) {
     if (e.firstT === null) e.firstT = G.clock;
     e.lastT = G.clock; e.idx++; hook("hit", e);
     while (!CFG.SPACES && e.word[e.idx] === " ") e.idx++;
-    if (e.idx >= e.word.length) kill(e);
+    if (G.weapon === "ray" && e.fire === undefined && !TYPES[e.type].citizen) { e.fire = e.burnRate = PERK.burn; hook("aflame", e); }
+    const P0 = G.weapon === "xbow" ? pos(e) : null;
+    if (e.idx >= wordEnd(e)) kill(e);
+    if (P0 && !G.enemies.includes(e) && !TYPES[e.type].bat && !TYPES[e.type].citizen) {   // crossbow: the killing bolt is a flaming one
+      const p = { x: P0.x, y: P0.y, s: P0.s * P0.k, uses: PERK.uses, hit: [] }; G.patches.push(p); hook("flamebolt", { p, y0: P0.y - 150 * P0.s * P0.k });
+    }
+    if (++G.perkN % PERK.every === 0 || G.weapon === "shotgun" || G.weapon === "xbow") perkShot(e);   // AR every PERK.every-th key; shotgun and crossbow every key
   } else {
     G.st.wrong++; hook("miss", e);
     if (G.burn) { G.burn = false; msg("You burn!"); hook("burn"); loseLife(); if (G.state === "over") return; }   // on fire: a typo costs another life
@@ -765,6 +818,15 @@ const snd = (() => {
   function env(g, t, a, peak, dur) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); }
   function tone(f0, f1, dur, type, peak) { if (!ac) return; const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain(); o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur); env(g, t, 0.01, peak, dur); o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05); }
   function puff(dur, cutoff, peak) { if (!ac) return; const t = ac.currentTime, s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = noiseBuf(); f.type = "lowpass"; f.frequency.value = cutoff; env(g, t, 0.005, peak, dur); s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t + dur + 0.05); }
+  const curves = {};
+  function wshot(parts, pk, drive) {   // pk: the voices' raw output peak (measured), so the shaper sees about +-1
+    if (!ac) return; const t = ac.currentTime, bus = ac.createGain(), ws = ac.createWaveShaper(), out = ac.createGain();
+    if (!curves[drive]) { const n = 1024, cv = new Float32Array(n); for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; cv[i] = Math.tanh(drive * x) / Math.tanh(drive); } curves[drive] = cv; }
+    ws.curve = curves[drive]; ws.oversample = "4x"; bus.gain.value = 0.55 / pk; out.gain.value = 0.85 / 0.55; bus.connect(ws); ws.connect(out); out.connect(master);
+    parts.forEach(p => p(bus, t));
+  }
+  const vT = (f0, f1, dur, type, peak, off = 0) => (d, t0) => { const t = t0 + off, o = ac.createOscillator(), g = ac.createGain(); o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur); env(g, t, 0.01, peak, dur); o.connect(g); g.connect(d); o.start(t); o.stop(t + dur + 0.05); };
+  const vN = (dur, kind, freq, q, peak, off = 0) => (d, t0) => { const t = t0 + off, s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = noiseBuf(); f.type = kind; f.frequency.value = freq; f.Q.value = q; env(g, t, kind === "lowpass" ? 0.005 : 0.004, peak, dur); s.connect(f); f.connect(g); g.connect(d); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.05); };
   // armor break: clank with a cling. Two plate hits 35 ms apart (300 / 355 Hz bases). Per hit: six damped body modes (ratios 1..5.2,
   // 45-60 ms) under seven bright ringing modes (ratios 7.1..20.5 = ~2.1-7.3 kHz, 90-200 ms), 15 ms noise strike at 4.5 kHz;
   // normalized (/3.1) into a tanh(2x) shaper, out at 0.85 peak. ~-3.5 LUFS(100 ms) vs gunshot -7.7.
@@ -803,7 +865,7 @@ const snd = (() => {
     hit() { tone(450, 250, 0.05, "square", 0.681); }, miss() { tone(140, 90, 0.09, "sawtooth", 2.42); },
     kill() { tone(130, 45, 0.28, "sine", 1.35); puff(0.25, 900, 1.15); }, hurt() { tone(70, 30, 0.5, "sine", 1.58); puff(0.4, 600, 1.32); },
     growl() { tone(90, 55, 0.55, "sawtooth", 1.66); }, bat() { puff(0.6, 3000, 1.8); tone(1800, 2600, 0.15, "sine", 0.515); }, door() { tone(95, 55, 0.9, "sawtooth", 1.44); puff(0.8, 500, 1.72); },
-    armor() { clang([[0, 300, 1.0], [0.035, 355, 0.7]], 1); },
+    armor() { clang([[0, 300, 1.0], [0.035, 355, 0.7]], 0.5); },   // 6 dB under its first level
     boom(L) {   // crack + swept low-passed noise roar + sub thump; levels set against GUNSHOT.mp3 (about -7.7 LUFS at L = 1, peaks caught by the limiter)
       if (!ac) return; const t = ac.currentTime, s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
       s.buffer = noiseBuf(); s.loop = true; f.type = "lowpass"; f.frequency.setValueAtTime(4000, t); f.frequency.exponentialRampToValueAtTime(180, t + 0.9);
@@ -816,14 +878,16 @@ const snd = (() => {
     ignite() { puff(0.7, 1200, 1.6); tone(110, 60, 0.6, "sawtooth", 0.8); },
     crackle() { puff(0.03, 3500, 0.45); },
     douse() { puff(0.6, 5500, 0.9); },
-    pistol() { puff(0.075, 2800, 0.22); tone(105, 38, 0.11, "triangle", 0.17); },
-    ar() { puff(0.03, 1400, 0.06); tone(170, 70, 0.045, "triangle", 0.07); tone(1100, 700, 0.02, "square", 0.015); },
-    ray() { tone(1500, 240, 0.2, "sawtooth", 0.06); tone(2300, 520, 0.14, "sine", 0.05); puff(0.05, 6000, 0.04); },
-    twang() { tone(240, 80, 0.14, "triangle", 0.2); tone(1500, 650, 0.07, "square", 0.04); puff(0.05, 3500, 0.07); },
-    dbl() { puff(0.24, 1700, 0.42); tone(85, 26, 0.3, "triangle", 0.34); },
+    // weapon shots: layered voices into a tanh shaper (wshot), levels measured offline (max 100 ms K-weighted loudness)
+    // against GUNSHOT.mp3 at volume 0.5 (about -7.7 LUFS); the AR sits about 6 dB under, every shot peaks at 0.85.
+    pistol() { wshot([vN(0.075, "lowpass", 2800, 1, 1.0), vT(105, 38, 0.11, "triangle", 0.77)], 0.475, 3); },   // fallback when GUNSHOT.mp3 is missing
+    ar() { wshot([vN(0.05, "bandpass", 1300, 1.2, 1.0), vT(150, 60, 0.06, "sine", 0.8), vT(3200, 2200, 0.012, "square", 0.25), vN(0.025, "bandpass", 2600, 4, 0.5, 0.045)], 0.465, 2); },
+    ray() { wshot([vT(1900, 180, 0.22, "sawtooth", 0.5), vT(2900, 420, 0.16, "sine", 0.6), vT(110, 108, 0.25, "sine", 0.5), vN(0.04, "highpass", 5000, 1, 0.3)], 0.841, 3); },
+    dbl() { wshot([vN(0.35, "lowpass", 2200, 1, 1.0), vT(68, 28, 0.35, "sine", 1.0), vN(0.02, "bandpass", 4500, 2, 0.35, 0.04), vN(0.02, "bandpass", 4500, 2, 0.35, 0.075), vN(0.02, "bandpass", 4500, 2, 0.35, 0.115)], 0.652, 2.5); },
+    twang() { wshot([vT(196, 186, 0.35, "triangle", 0.9), vT(392, 370, 0.25, "sine", 0.4), vT(1250, 900, 0.03, "square", 0.2), vN(0.22, "bandpass", 1500, 0.8, 0.35, 0.03)], 0.609, 2); },
     pin() { tone(2600, 2000, 0.03, "square", 0.25); setTimeout(() => tone(1800, 1400, 0.05, "triangle", 0.35), 90); },
     whoosh() { puff(0.3, 1800, 0.9); },
-    plink() { clang([[0, 420 + Math.random() * 230, 1.0]], 0.316); }, throw() { puff(0.35, 2500, 2.54); tone(700, 1500, 0.3, "triangle", 0.761); },
+    plink() { clang([[0, 420 + Math.random() * 230, 1.0]], 0.158); }, throw() { puff(0.35, 2500, 2.54); tone(700, 1500, 0.3, "triangle", 0.761); },
     tick(dt, danger) { if (!ac || !danger) { hb = 0; return; } hb -= dt; if (hb <= 0) { hb = 0.62; tone(58, 40, 0.14, "sine", 1.97); setTimeout(() => tone(52, 38, 0.16, "sine", 1.47), 170); } }
   };
 })();
@@ -847,13 +911,14 @@ const music = (() => {
   }
   function play(a) { try { const p = a.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
   function stopNow(a) { try { a.pause(); a.currentTime = 0; } catch (e) {} }
-  const SHOT_VOL = 0.5; let shotEl = null;
+  const SHOT_VOL = 0.5; let shotEl = null, shotBad = typeof Audio === "undefined";
   return {
     arm() { armed = true; },
     mute(m) { muted = m; for (const k in els) els[k].muted = m; if (shotEl) shotEl.muted = m; },
-    shot() {
-      if (!shotEl) { shotEl = new Audio("SOUNDS/GUNSHOT.mp3"); shotEl.preload = "auto"; shotEl.volume = SHOT_VOL; shotEl.addEventListener("error", () => {}); }
-      shotEl.muted = muted; try { shotEl.pause(); shotEl.currentTime = 0; } catch (e) {} play(shotEl);
+    shot() {   // pistol: SOUNDS/GUNSHOT.mp3, restarted on each shot; false when it cannot play, so the caller synthesises one
+      if (shotBad) return false;
+      if (!shotEl) { shotEl = new Audio("SOUNDS/GUNSHOT.mp3"); shotEl.preload = "auto"; shotEl.volume = SHOT_VOL; shotEl.addEventListener("error", () => { shotBad = true; }); }
+      shotEl.muted = muted; try { shotEl.pause(); shotEl.currentTime = 0; } catch (e) {} play(shotEl); return true;
     },
     sync(dt) {
       if (!armed) return;
@@ -874,8 +939,8 @@ const music = (() => {
 })();
 /* ---- effects (driven by hooks from the game logic) ---- */
 let NOW = 0, shake = 0, redFlash = 0, BG = null;
-const parts = [], deaths = [], floats = [], lens = [], stains = [], drips = [], bats = [], chunks = [], booms = [], fires = []; let nextDrip = 1, nextBat = 7, pistolT = -9, pistolShot = 0;
-function clearFx() { [parts, deaths, floats, lens, stains, drips, bats, chunks, booms, fires].forEach(a => { a.length = 0; }); pistolT = -9; pistolShot = 0; }
+const parts = [], deaths = [], floats = [], lens = [], stains = [], drips = [], bats = [], chunks = [], booms = [], fires = [], fbolts = []; let nextDrip = 1, nextBat = 7, pistolT = -9, pistolShot = 0;
+function clearFx() { [parts, deaths, floats, lens, stains, drips, bats, chunks, booms, fires, fbolts].forEach(a => { a.length = 0; }); pistolT = -9; pistolShot = 0; }
 function burst(x, y, n, cols, sp, life) { for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, v = sp * (0.3 + Math.random()); parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - sp * 0.5, life: life * (0.6 + Math.random() * 0.6), age: 0, col: cols[i % cols.length], sz: 1.5 + Math.random() * 2 }); } }
 function pos(e) {
   const hold = e.hold || 0, u = Math.max(0, Math.min(0.999, (G.clock - e.born - hold) / (e.life - hold))), s = 1 / (1 + 6 * (1 - u));
@@ -884,6 +949,11 @@ function pos(e) {
 }
 hooks.hit = e => { const P = pos(e); e._f = 0.12; snd.hit(); burst(P.x, P.y - 150 * P.s * P.k, 6, ["#9a1812", "#6a0e0a", "#c02a20"], 170, 0.4); if (!TYPES[e.type].citizen) shootPistol(); };
 hooks.miss = e => { e._m = 0.25; snd.miss(); };
+const TRIM_COL = { ar: ["#ffd27a", "#fff0c0"], ray: ["#ffb040", "#ff6a20", "#ffe080"], shotgun: ["#ff9a40", "#ffd080", "#c84a20"], xbow: ["#e8d8b0", "#a88a5a"] };
+hooks.trim = e => { const P = pos(e), y = P.y - (e.type === "bat" ? 30 : e.lane === 1 ? 100 : 155) * P.s * P.k; e._t = 0.15; burst(P.x + 40 * P.s, y, 5, TRIM_COL[G.weapon] || TRIM_COL.ar, 120, 0.3); };
+hooks.aflame = e => snd.ignite();
+hooks.flamebolt = o => { fbolts.push({ x: o.p.x, y: o.y0, t0: NOW }); snd.ignite(); burst(o.p.x, o.p.y - 6, 10, ["#ffb040", "#ff6a20", "#ffe080"], 160, 0.4); };
+hooks.patchout = p => burst(p.x, p.y - 4, 8, ["#3a3028", "#6a5a4a"], 90, 0.6);
 hooks.damage = () => { shake = 0.4; redFlash = 0.5; snd.hurt(); for (let i = 0; i < 8; i++) lens.push({ x: 120 + Math.random() * 720, y: 40 + Math.random() * 330, r: 18 + Math.random() * 40, t0: NOW }); };
 hooks.door = () => snd.door();
 hooks.armor = e => {
@@ -1009,7 +1079,7 @@ const PISTOL_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABOYAAATmCAYAAA
 const PISTOL_VIEW = { x: 170, y: 194, w: 952, h: 1006, sightX: 458 };
 const PISTOL_IMG = typeof Image === "undefined" ? null : new Image();
 if (PISTOL_IMG) PISTOL_IMG.src = PISTOL_SRC;
-function shootPistol() { pistolT = NOW; pistolShot++; snd[weaponDef().snd](); }
+function shootPistol() { pistolT = NOW; pistolShot++; const w = weaponDef(); if (w.id !== "pistol" || !music.shot()) snd[w.snd](); }   // pistol: SOUNDS/GUNSHOT.mp3
 const FLASH_PIX = [
   ".........r..........", ".........rr.........", "........roo.........", "........roy.........",
   ".......royyr........", "..r....royyor.......", "..rr..royyyor.......", "..ror.roywyyr..r....",
@@ -1140,12 +1210,17 @@ function sprite(c, e) {
   if (e._f > 0) { c.shadowColor = "rgba(200,28,20,.6)"; c.shadowBlur = 20; }
   if (e.gray > 0) c.filter = "grayscale(1) brightness(0.55)";
   c.drawImage(L, -210, -430); c.filter = "none"; c.restore();
+  if (e.fire !== undefined) {   // burning: flames up the body, kept big enough to read on far enemies, and a warm glow
+    const f = Math.max(ls, 0.32); c.save(); c.globalCompositeOperation = "lighter"; c.globalAlpha = born;
+    const gl = c.createRadialGradient(P.x, P.y - 130 * f, 0, P.x, P.y - 130 * f, 140 * f); gl.addColorStop(0, "rgba(255,120,30,.35)"); gl.addColorStop(1, "rgba(255,120,30,0)"); c.fillStyle = gl; c.fillRect(P.x - 140 * f, P.y - 270 * f, 280 * f, 280 * f);
+    tongues(c, P.x, P.y - 40 * ls, 4, 110 * f, 70 * f, 26 * f, 30 * f); tongues(c, P.x, P.y - 190 * ls, 3, 60 * f, 40 * f, 18 * f, 24 * f); c.restore(); if (Math.random() < 0.03) snd.crackle();
+  }
   { const hz = c.createRadialGradient(P.x, P.y - 140 * ls, 10, P.x, P.y - 140 * ls, 150 * ls); hz.addColorStop(0, "rgba(150,18,14," + 0.16 * born * body + ")"); hz.addColorStop(1, "rgba(150,18,14,0)"); c.fillStyle = hz; c.fillRect(P.x - 160 * ls, P.y - 300 * ls, 320 * ls, 320 * ls); }
   const ey = EYES[e.type];   // eyes show first, from far away in the dark, and dim once the body is lit
   if (ey && !(e.gray > 0)) { c.save(); c.globalCompositeOperation = "lighter"; c.globalAlpha = born * (1 - 0.45 * body); [ey[0], ey[1]].forEach(q => { const x = P.x + q[0] * ls, y = P.y + q[1] * ls, r = Math.max(6, 18 * ls), g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, ey[2]); g.addColorStop(1, "rgba(0,0,0,0)"); c.fillStyle = g; c.fillRect(x - r, y - r, 2 * r, 2 * r); }); c.restore(); }
 }
 /* the word sits on a weathered iron plaque fixed to the monster (or door); typed letters go gold, the next letter is pale */
-function drawWord(c, word, idx, cx, cy, px, lock, a, left, edge) {
+function drawWord(c, word, idx, cx, cy, px, lock, a, left, edge, cut) {
   c.font = "bold " + px + "px Georgia,serif"; let w = c.measureText(word).width; const maxW = W * 0.44;
   if (w > maxW) { px = Math.floor(px * maxW / w); c.font = "bold " + px + "px Georgia,serif"; w = c.measureText(word).width; }
   const bw = w + px * 1.3, bh = px * 1.8, x = cx - bw / 2, y = cy - bh / 2, ty = y + bh * 0.47;
@@ -1153,14 +1228,15 @@ function drawWord(c, word, idx, cx, cy, px, lock, a, left, edge) {
   rr(c, x, y, bw, bh, px * 0.18); c.fillStyle = lg(c, 0, y, 0, y + bh, [[0, "#4a4842"], [0.5, "#2f2e2a"], [1, "#1c1c1a"]]); c.fill(); c.shadowBlur = 0;
   c.lineWidth = lock ? 2.2 : edge ? 2.4 : 1.4; c.strokeStyle = lock ? "#b08a45" : (edge || "#7a705a"); c.stroke();
   c.fillStyle = "#6b6252"; [[x + 4, y + 4], [x + bw - 4, y + 4], [x + 4, y + bh - 4], [x + bw - 4, y + bh - 4]].forEach(p => { c.beginPath(); c.arc(p[0], p[1], Math.max(1.2, px * 0.07), 0, 6.3); c.fill(); });
-  c.textBaseline = "middle"; c.textAlign = "left"; const tx = cx - w / 2, done = word.slice(0, idx), nx = word.charAt(idx), rest = word.slice(idx + 1);
+  c.textBaseline = "middle"; c.textAlign = "left"; const end = word.length - (cut || 0), tx = cx - w / 2, done = word.slice(0, idx), nx = idx < end ? word.charAt(idx) : "", rest = word.slice(idx + 1, end), gone = word.slice(Math.max(idx, end));
   c.fillStyle = "rgba(0,0,0,.85)"; c.fillText(word, tx + 1, ty + 1);
   let xx = tx; [[done, "#dcb457"], [nx, lock ? "#f6f1e2" : "#f2edde"], [rest, "#c6bfab"]].forEach(p => { if (p[0]) { c.fillStyle = p[1]; c.fillText(p[0], xx, ty); xx += c.measureText(p[0]).width; } });
+  if (gone) { const gw = c.measureText(gone).width; c.fillStyle = "rgba(20,18,15,.72)"; c.fillRect(xx - 1, ty - px * 0.6, gw + 2, px * 1.2); c.fillStyle = "rgba(198,191,171,.28)"; c.fillText(gone, xx, ty); c.fillStyle = "rgba(220,180,87,.55)"; c.fillRect(xx, ty, gw, Math.max(1, px * 0.07)); }   // trimmed letters: shadowed and struck, still in place
   if (lock && nx) { c.fillStyle = "#dcb457"; c.fillRect(tx + c.measureText(done).width, ty + px * 0.55, c.measureText(nx).width, 1.5); }
   if (left >= 0) { c.fillStyle = "#0a0a0a"; c.fillRect(x + 5, y + bh - 4, bw - 10, 2); c.fillStyle = left > 0.5 ? "#c4772a" : left > 0.25 ? "#b5501f" : "#a32218"; c.fillRect(x + 5, y + bh - 4, (bw - 10) * left, 2); }
   c.restore();
 }
-function plaque(c, e) { if (e.stagger > 0) return; const P = pos(e), ty = TYPES[e.type]; drawWord(c, e.word, e.idx, P.x, P.y - (e.type === "bat" ? 30 : e.lane === 1 ? 100 : 155) * P.s * P.k, Math.round(12 + 15 * P.s), G.lock === e && !(e.gray > 0), Math.min(1, (G.clock - (e.t0 === undefined ? e.born : e.t0)) / 0.6) * (e.gray > 0 ? 0.3 : 1), Math.max(0, 1 - (G.clock - e.born) / e.life), e.axes ? "#b04a4a" : (e.armor && !e.broken) || (ty.hybrid && e.stage === 1) ? "#9db4d0" : null); }
+function plaque(c, e) { if (e.stagger > 0) return; const P = pos(e), ty = TYPES[e.type]; drawWord(c, e.word, e.idx, P.x, P.y - (e.type === "bat" ? 30 : e.lane === 1 ? 100 : 155) * P.s * P.k, Math.round(12 + 15 * P.s), G.lock === e && !(e.gray > 0), Math.min(1, (G.clock - (e.t0 === undefined ? e.born : e.t0)) / 0.6) * (e.gray > 0 ? 0.3 : 1), Math.max(0, 1 - (G.clock - e.born) / e.life), e.fire !== undefined ? "#ff8a2a" : e.axes ? "#b04a4a" : (e.armor && !e.broken) || (ty.hybrid && e.stage === 1) ? "#9db4d0" : null, e.cut || 0); }
 function drawDoors(c) {
   const d = G.doors, z = Math.min(1, d.t / 1.6), s = 0.1 + 0.9 * (1 - Math.pow(1 - z, 3)); if (!DOORS) DOORS = buildDoors();
   bgFor(["sewer", "ossuary", "sewer2", "ossuary2"][Math.min(3, Math.floor(d.t / 0.4))]);   // build one background per 0.4 s, before you can type
@@ -1253,10 +1329,10 @@ function screens(c) {
     { const dy = Math.min(36, 100 / Math.max(1, G.results.length - 1)), fs = dy < 26 ? 16 : 21; G.results.forEach((r, i) => { txt(c, "Stage " + ((r.idx === undefined ? i : r.idx) + 1) + "  " + r.name, 220, 170 + i * dy, fs, ink, "left"); txt(c, r.total + " pts", 740, 170 + i * dy, fs, ink, "right"); }); }
     txt(c, "Life bonus (placeholder)", 220, 290, 20, ink, "left"); txt(c, G.final.bonus + " pts", 740, 290, 20, ink, "right");
     txt(c, "FINAL SCORE  " + G.final.total, W / 2, 360, 40, "#7a1f12", "center", true); txt(c, "best " + G.best + "     " + G.diff.toUpperCase() + (G.mode === "original" ? " / ORIGINAL RULES" : "") + (G.level >= 0 ? " / STAGE " + (G.level + 1) + " ONLY" : ""), W / 2, 394, 20, ink);
-    if (G.net.hosted) txt(c, G.level >= 0 ? "Single-stage runs are not saved to the leaderboard." : G.net.status, W / 2, 420, 17, G.net.retry ? "#8a1d12" : ink);
+    if (G.net.hosted) txt(c, G.net.status, W / 2, 420, 17, G.net.retry ? "#8a1d12" : ink);
     txt(c, "ENTER for the title" + (G.net.hosted ? "      S  leaderboard" : "") + (G.net.retry ? "      R  retry save" : ""), W / 2, 452, 18, ink);
   } else if (G.state === "weapon") {
-    dark(0.7); title(c, "CHOOSE YOUR ARMS", 64, 44, "#b8985a"); txt(c, G.weaponThen === "seg" ? "Next: stage " + (G.seg + 2) + "  " + STAGES[G.seg + 1].name + ".   Looks only. Every weapon scores the same." : "Looks only. Every weapon scores the same.", W / 2, 100, 16, "#c9b98a");
+    dark(0.7); title(c, "CHOOSE YOUR ARMS", 64, 44, "#b8985a"); if (G.weaponThen === "seg") txt(c, "Next: stage " + (G.seg + 2) + "  " + STAGES[G.seg + 1].name, W / 2, 92, 14, "#a8987a"); txt(c, weaponDef().perk, W / 2, 112, 16, "#ffd27a");
     WEAPONS.forEach((w, i) => {
       const sel = w.id === G.weapon, x = 40 + i * 178, bob = sel ? Math.sin(NOW * 3) * 3 : 0;
       c.save(); c.globalAlpha = sel ? 1 : 0.55; rr(c, x, 130, 168, 310, 8); c.fillStyle = "rgba(22,17,10,.88)"; c.fill(); c.lineWidth = sel ? 3 : 1; c.strokeStyle = sel ? "#dcb457" : "#5a4a2a"; if (sel) { c.shadowColor = "#dcb457"; c.shadowBlur = 18; } c.stroke(); c.restore();
@@ -1273,17 +1349,17 @@ function screens(c) {
     txt(c, "ENTER to confirm      ESC to " + (N.name ? "cancel" : "play as a guest"), W / 2, 372, 18, ink);
   } else if (G.state === "scores") {
     const N = G.net, st = G.mode === "strict", ink = "#2b1d0e"; dark(0.6); parch(c, 150, 28, 660, 484);
-    txt(c, "DUNGEON RECORDS", W / 2, 66, 34, "#7a1f12", "center", true);
-    txt(c, st ? "[ STRICT ]" : "STRICT", 400, 104, st ? 21 : 17, st ? "#7a1f12" : "#5a4a2a", "right", true); txt(c, !st ? "[ ORIGINAL ]" : "ORIGINAL", 560, 104, !st ? 21 : 17, !st ? "#7a1f12" : "#5a4a2a", "left", true);
-    const ready = N.boardMode === G.mode && !N.loading;
+    txt(c, "DUNGEON RECORDS", W / 2, 58, 32, "#7a1f12", "center", true); txt(c, "<  " + boardName(N.boardStage) + "  >", W / 2, 82, 16, ink, "center", true);
+    txt(c, st ? "[ STRICT ]" : "STRICT", 400, 108, st ? 21 : 17, st ? "#7a1f12" : "#5a4a2a", "right", true); txt(c, !st ? "[ ORIGINAL ]" : "ORIGINAL", 560, 108, !st ? 21 : 17, !st ? "#7a1f12" : "#5a4a2a", "left", true);
+    const ready = N.boardKey === G.mode + "/" + boardId(N.boardStage) && !N.loading;
     if (!ready) txt(c, N.err || "Reading the records...", W / 2, 270, 20, ink);
     else if (!N.board.length) txt(c, "No scores yet. Claim the first spot.", W / 2, 270, 20, ink);
     else { let rank = 0; N.board.slice(0, 10).forEach((r, i) => {
       if (i === 0 || r.score !== N.board[i - 1].score) rank = i + 1; const y = 146 + i * 31, me = N.name && r.name === N.name && r.score === N.best;
       if (me) { c.fillStyle = "rgba(122,31,18,.18)"; c.fillRect(200, y - 14, 560, 28); }
-      txt(c, "#" + rank, 222, y, 21, ink, "left", true); txt(c, r.name, 290, y, 21, me ? "#7a1f12" : ink, "left", me); txt(c, String(r.score), 738, y, 21, ink, "right", true); }); }
+      txt(c, "#" + rank, 222, y, 21, ink, "left", true); txt(c, r.name, 290, y, 21, me ? "#7a1f12" : ink, "left", me); txt(c, ((WEAPONS.find(w => w.id === r.weapon) || {}).name || "").toLowerCase(), 600, y, 13, "#5a4a2a", "right"); txt(c, String(r.score), 738, y, 21, ink, "right", true); }); }
     txt(c, N.name ? "You: " + N.name + "   best " + N.best : "No name chosen. Press ESC, then N on the title.", W / 2, 466, 17, ink);
-    txt(c, "TAB switch mode      ESC back", W / 2, 492, 15, ink);
+    txt(c, "LEFT / RIGHT board      TAB mode      ESC back", W / 2, 492, 15, ink);
   } else if (G.state === "pause") { dark(0.5); title(c, "PAUSED", 250, 56, "#b8985a"); }
   else if (G.state === "over") { dark(0.55); title(c, G.continues > 0 ? "YOU FALL..." : "THE END", 220, 58, "#9a3a2c"); txt(c, G.continues > 0 ? "ENTER = continue   (" + G.continues + " left, p-5)" : "NO CONTINUES LEFT   -   ENTER for the title", W / 2, 290, 24, "#fff", "center", true); }
 }
@@ -1372,6 +1448,14 @@ function render(c, now) {
   if (shake > 0) { shake -= dt; c.translate((Math.random() - 0.5) * 36 * shake, (Math.random() - 0.5) * 26 * shake); }
   drawStage(c);
   for (let i = stains.length - 1; i >= 0; i--) { const s = stains[i], a = (NOW - s.t0) / 14; if (a >= 1) { stains.splice(i, 1); continue; } c.fillStyle = s.scorch ? "rgba(12,10,9," + 0.7 * (1 - a) + ")" : "rgba(70,6,5," + 0.55 * (1 - a) + ")"; c.beginPath(); c.ellipse(s.x, s.y + 4, 74 * s.s, 15 * s.s, 0, 0, 6.283); c.fill(); }
+  if (G.state === "play" || G.state === "pause") G.patches.forEach(p => {   // crossbow ground fire
+    const rx = PERK.patch * p.s + 10; c.save(); c.globalCompositeOperation = "lighter";
+    const g = c.createRadialGradient(p.x, p.y, 0, p.x, p.y, rx * 1.3); g.addColorStop(0, "rgba(255,140,40,.35)"); g.addColorStop(1, "rgba(255,90,20,0)"); c.fillStyle = g; c.beginPath(); c.ellipse(p.x, p.y, rx * 1.3, rx * 0.45, 0, 0, 6.283); c.fill();
+    for (let j = -2; j <= 2; j++) tongues(c, p.x + j * rx * 0.38, p.y - Math.abs(j) * 2, 3, (34 - 6 * Math.abs(j)) * p.s + 6, 26 * p.s + 4, 9 * p.s + 3, 8 * p.s + 2);
+    c.restore();
+  });
+  for (let i = fbolts.length - 1; i >= 0; i--) { const b = fbolts[i], a = 1 - (NOW - b.t0) / 0.3; if (a <= 0) { fbolts.splice(i, 1); continue; }
+    c.save(); c.globalCompositeOperation = "lighter"; c.lineCap = "round"; [[9, "rgba(255,90,20,"], [4, "rgba(255,200,90,"], [1.5, "rgba(255,250,220,"]].forEach(q => { c.strokeStyle = q[1] + a + ")"; c.lineWidth = q[0]; c.beginPath(); c.moveTo(CX, 470); c.lineTo(b.x, b.y); c.stroke(); }); c.restore(); }
   drawAmbient(c, dt, G.state === "play");
   const playing = G.state === "play" || G.state === "pause" || G.state === "over" || G.state === "doors";
   if (G.state === "doors") { chunks.length = 0; parts.length = 0; stains.length = 0; lens.length = 0; floats.length = 0; deaths.length = 0; drawDoors(c); }
@@ -1436,8 +1520,8 @@ if (typeof window !== "undefined" && typeof document !== "undefined" && document
     const data = await response.json(); if (!response.ok) throw new Error(data.error || "Score service unavailable."); return data;
   }
   async function loadBoard() {
-    if (!hosted) return; const mode = G.mode, request = ++boardRequest; N.loading = true; N.err = "";
-    try { const data = await api("/api/leaderboard?mode=" + mode); if (request !== boardRequest) return; N.board = data.board; N.best = data.best; N.boardMode = mode; }
+    if (!hosted) return; const mode = G.mode, stage = boardId(N.boardStage), request = ++boardRequest; N.loading = true; N.err = "";
+    try { const data = await api("/api/leaderboard?mode=" + mode + "&stage=" + stage); if (request !== boardRequest) return; N.board = data.board; N.best = data.best; N.boardKey = mode + "/" + stage; }
     catch (e) { if (request === boardRequest) N.err = e.message; }
     finally { if (request === boardRequest) N.loading = false; }
   }
@@ -1447,7 +1531,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined" && document
     saving = true; N.retry = false; N.status = "Saving your run...";
     try {
       const data = await api("/api/scores", pending[0]); pending.shift(); storage.set("dt_pending_runs", JSON.stringify(pending));
-      await loadBoard(); N.status = "Saved. Rank #" + data.rank + "   your best " + data.best;
+      await loadBoard(); N.status = "Saved to " + (data.stage === "all" ? "ALL STAGES" : (STAGES.find(s => s.id === data.stage) || {}).name || data.stage) + ". Rank #" + data.rank + "   your best " + data.best;
     } catch (e) { N.status = e.message + " Your run is kept."; N.retry = true; }
     finally { saving = false; }
     if (pending.length && !N.retry) await submitScore();
@@ -1468,8 +1552,9 @@ if (typeof window !== "undefined" && typeof document !== "undefined" && document
       lastFinal = G.final; N.status = "";
       const keys = G.results.reduce((n, r) => n + r.s.keys, 0), wrong = G.results.reduce((n, r) => n + r.s.wrong, 0);
       const chars = G.results.reduce((n, r) => n + r.s.chars, 0), secs = G.results.reduce((n, r) => n + r.s.secs, 0);
-      if (!hosted || G.level >= 0) return;   // only full runs go on the leaderboard
-      pending.push({ id: crypto.randomUUID(), version: "v48-1", mode: G.mode, score: G.final.total, accuracy: keys ? 100 * (keys - wrong) / keys : 100, wpm: secs ? chars / 5 / (secs / 60) : 0 });
+      if (!hosted) return;   // full runs go on ALL STAGES, single-stage runs on that stage's board
+      N.boardStage = G.level;
+      pending.push({ id: crypto.randomUUID(), version: "v48-2", mode: G.mode, stage: boardId(G.level), weapon: G.weapon, score: G.final.total, accuracy: keys ? 100 * (keys - wrong) / keys : 100, wpm: secs ? chars / 5 / (secs / 60) : 0 });
       storage.set("dt_pending_runs", JSON.stringify(pending)); submitScore();
     }
   }

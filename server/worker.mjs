@@ -1,10 +1,13 @@
-const VERSION = 'v48-1';
+const VERSION = 'v48-2';
+// Boards: 'all' for full runs, else a stage id (STAGES[i].id in the game). A new stage needs its id here.
+export const STAGE_IDS = ['all', 'corridor', 'control', 'gate', 'courtyard', 'crypt'];
+export const WEAPON_IDS = ['pistol', 'ar', 'ray', 'shotgun', 'xbow'];
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const hash = async value => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)))].map(b => b.toString(16).padStart(2, '0')).join('');
 const tokenPattern = /^[a-f0-9]{64}$/;
 export function validateRun(data) {
   return data && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(data.id) && ['strict', 'original'].includes(data.mode)
-    && data.version === VERSION && Number.isInteger(data.score) && data.score >= 1 && data.score <= 1000000
+    && data.version === VERSION && STAGE_IDS.includes(data.stage) && WEAPON_IDS.includes(data.weapon) && Number.isInteger(data.score) && data.score >= 1 && data.score <= 1000000
     && Number.isFinite(data.accuracy) && data.accuracy >= 0 && data.accuracy <= 100
     && Number.isFinite(data.wpm) && data.wpm >= 0 && data.wpm <= 1000;
 }
@@ -23,13 +26,16 @@ export default {
       if (request.method === 'GET' && url.pathname === '/api/leaderboard') {
         const mode = url.searchParams.get('mode') || 'strict';
         if (!['strict', 'original'].includes(mode)) return json({ error: 'Unknown mode.' }, 400);
-        const rows = await env.DB.prepare(`SELECT p.name, MAX(r.score) AS score FROM runs r
+        const stage = url.searchParams.get('stage') || 'all';
+        if (!STAGE_IDS.includes(stage)) return json({ error: 'Unknown stage.' }, 400);
+        // SQLite returns the weapon from the row that holds MAX(score).
+        const rows = await env.DB.prepare(`SELECT p.name, MAX(r.score) AS score, r.weapon FROM runs r
           JOIN players p ON p.scope=r.scope AND p.token_hash=r.player_hash
-          WHERE r.scope=? AND r.mode=? AND r.version=? GROUP BY r.player_hash
-          ORDER BY score DESC, p.created_at ASC, r.player_hash ASC LIMIT 100`).bind(scope, mode, VERSION).all();
+          WHERE r.scope=? AND r.mode=? AND r.version=? AND r.stage=? GROUP BY r.player_hash
+          ORDER BY score DESC, p.created_at ASC, r.player_hash ASC LIMIT 100`).bind(scope, mode, VERSION, stage).all();
         const player = await identity(request);
-        const best = player ? await env.DB.prepare('SELECT MAX(score) AS best FROM runs WHERE scope=? AND player_hash=? AND mode=? AND version=?').bind(scope, player, mode, VERSION).first() : null;
-        return json({ mode, version: VERSION, board: rows.results, best: best?.best || 0 });
+        const best = player ? await env.DB.prepare('SELECT MAX(score) AS best FROM runs WHERE scope=? AND player_hash=? AND mode=? AND version=? AND stage=?').bind(scope, player, mode, VERSION, stage).first() : null;
+        return json({ mode, stage, version: VERSION, board: rows.results, best: best?.best || 0 });
       }
       if (request.method !== 'POST') return json({ error: 'Not found.' }, 404);
       if (request.headers.get('Origin') !== url.origin) return json({ error: 'Same-origin requests required.' }, 403);
@@ -58,19 +64,19 @@ export default {
       if (!validateRun(data)) return json({ error: 'Invalid score submission.' }, 400);
       const known = await env.DB.prepare('SELECT name FROM players WHERE scope=? AND token_hash=?').bind(scope, player).first();
       if (!known) return json({ error: 'Player not found.' }, 401);
-      const previous = await env.DB.prepare('SELECT player_hash,mode,version,score,accuracy,wpm FROM runs WHERE scope=? AND id=?').bind(scope, data.id).first();
-      if (previous && (previous.player_hash !== player || ['mode', 'version', 'score', 'accuracy', 'wpm'].some(k => previous[k] !== data[k]))) return json({ error: 'Submission ID already used.' }, 409);
+      const previous = await env.DB.prepare('SELECT player_hash,mode,version,stage,weapon,score,accuracy,wpm FROM runs WHERE scope=? AND id=?').bind(scope, data.id).first();
+      if (previous && (previous.player_hash !== player || ['mode', 'version', 'stage', 'weapon', 'score', 'accuracy', 'wpm'].some(k => previous[k] !== data[k]))) return json({ error: 'Submission ID already used.' }, 409);
       if (!previous) {
         const recent = await env.DB.prepare("SELECT COUNT(*) AS n FROM runs WHERE scope=? AND player_hash=? AND created_at > strftime('%Y-%m-%dT%H:%M:%fZ','now','-1 minute')").bind(scope, player).first();
         if (recent.n >= 5) return json({ error: 'Too many scores. Retry in a minute.' }, 429);
-        await env.DB.prepare('INSERT OR IGNORE INTO runs(scope,id,player_hash,mode,version,score,accuracy,wpm) VALUES(?,?,?,?,?,?,?,?)').bind(scope, data.id, player, data.mode, data.version, data.score, data.accuracy, data.wpm).run();
+        await env.DB.prepare('INSERT OR IGNORE INTO runs(scope,id,player_hash,mode,version,stage,weapon,score,accuracy,wpm) VALUES(?,?,?,?,?,?,?,?,?,?)').bind(scope, data.id, player, data.mode, data.version, data.stage, data.weapon, data.score, data.accuracy, data.wpm).run();
       }
       // Recheck after INSERT OR IGNORE so simultaneous retries cannot claim another run.
-      const stored = await env.DB.prepare('SELECT player_hash,mode,version,score,accuracy,wpm FROM runs WHERE scope=? AND id=?').bind(scope, data.id).first();
-      if (stored.player_hash !== player || ['mode','version','score','accuracy','wpm'].some(k => stored[k] !== data[k])) return json({ error: 'Submission ID already used.' }, 409);
-      const best = await env.DB.prepare('SELECT MAX(score) AS best FROM runs WHERE scope=? AND player_hash=? AND mode=? AND version=?').bind(scope, player, data.mode, VERSION).first();
-      const rank = await env.DB.prepare(`SELECT COUNT(*)+1 AS rank FROM (SELECT player_hash,MAX(score) AS best FROM runs WHERE scope=? AND mode=? AND version=? GROUP BY player_hash) WHERE best>?`).bind(scope, data.mode, VERSION, best.best).first();
-      return json({ saved: true, best: best.best, rank: rank.rank });
+      const stored = await env.DB.prepare('SELECT player_hash,mode,version,stage,weapon,score,accuracy,wpm FROM runs WHERE scope=? AND id=?').bind(scope, data.id).first();
+      if (stored.player_hash !== player || ['mode','version','stage','weapon','score','accuracy','wpm'].some(k => stored[k] !== data[k])) return json({ error: 'Submission ID already used.' }, 409);
+      const best = await env.DB.prepare('SELECT MAX(score) AS best FROM runs WHERE scope=? AND player_hash=? AND mode=? AND version=? AND stage=?').bind(scope, player, data.mode, VERSION, data.stage).first();
+      const rank = await env.DB.prepare(`SELECT COUNT(*)+1 AS rank FROM (SELECT player_hash,MAX(score) AS best FROM runs WHERE scope=? AND mode=? AND version=? AND stage=? GROUP BY player_hash) WHERE best>?`).bind(scope, data.mode, VERSION, data.stage, best.best).first();
+      return json({ saved: true, stage: data.stage, best: best.best, rank: rank.rank });
     } catch (error) {
       console.error('Score service failure', error);
       return json({ error: 'Score service unavailable. Please retry.' }, 503);
