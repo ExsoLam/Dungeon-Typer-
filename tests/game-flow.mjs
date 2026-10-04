@@ -94,3 +94,28 @@ for (const weapon of ['pistol', 'ar', 'ray', 'shotgun', 'xbow']) {
   assert.equal(R.assistRank, R.bRank, 'a perk kill of an untyped enemy is rank B');
   console.log('weapon perk rules passed');
 }
+// crossbow ground fire: the killing bolt leaves a patch; the first two enemies to walk in burn at a third of the ray gun's rate
+{
+  const context = vm.createContext({ Math, console, setTimeout });
+  vm.runInContext(script + `
+    const R = {};
+    setLevel(0); key('Enter'); key('Enter'); G.queue = []; G.nextSpawn = 1e9; G.enemies = []; G.lock = null; G.weapon = 'xbow';
+    const mk = (word) => { const e = spawn('zombie', true); e.word = word; e.born = G.clock - 20; e.hold = 0; e.life = 60; return e; };
+    const vis = e => e.word.slice(0, wordEnd(e));
+    const a = mk('ab'); key('a'); key('b'); R.patches = G.patches.length; R.patchAt = G.patches[0] && Math.round(G.patches[0].x) === Math.round(pos({ ...a }).x);
+    const clone = (word, extra) => { const x = { ...a, word, idx: 0, cut: 0, firstT: null, fire: undefined, burnRate: undefined, ...extra }; G.enemies.push(x); return x; };
+    const flyer = clone('qqqqqqqq', { type: 'bat' }); const b = clone('klmnopqrst'); update(0.01);
+    R.batSafe = flyer.fire === undefined; R.bRate = b.burnRate; R.left = G.patches.length && G.patches[0].uses;
+    for (let i = 0; i < 8; i++) update(0.1); R.bAfter = vis(b);   // 0.8 s at 0.75 s per letter: one letter
+    const c = clone('uvwxyzabcd'); update(0.01); R.cLit = c.burnRate; R.gone = G.patches.length;
+    const d = clone('efghijklmn'); update(0.01); R.dSafe = d.fire === undefined;
+    globalThis.out = R;
+  `, context);
+  const R = context.out;
+  assert.equal(R.patches, 1, 'the killing crossbow bolt leaves a ground fire'); assert.ok(R.patchAt, 'where the target stood');
+  assert.ok(R.batSafe, 'bats pass over it'); assert.equal(R.bRate, 0.75, 'an enemy walking in burns at 0.75 s per letter');
+  assert.equal(R.left, 1, 'one use left after the first enemy'); assert.equal(R.bAfter, 'klmnopqrs', 'one letter burned in 0.8 s');
+  assert.equal(R.cLit, 0.75, 'the second enemy catches fire too'); assert.equal(R.gone, 0, 'then the fire goes out');
+  assert.ok(R.dSafe, 'a third enemy is not lit');
+  console.log('crossbow ground fire rules passed');
+}

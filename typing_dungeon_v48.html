@@ -156,7 +156,7 @@ function pickZone(w) { const t = STAGES[w].w, ks = Object.keys(t); let r = Math.
 
 /* ---- game state (DOM-free so it can be tested headless) ---- */
 const G = { level: -1, diff: "hard", menu: 0, mode: "strict", state: "title", seg: 0, clock: 0, p: 3, acc: 0, calm: 0, lives: 3, continues: 5, cap: 0, enemies: [], queue: [], nextSpawn: 0,
-  lock: null, msgs: [], st: null, results: [], flash: 0, best: 0, final: null, tier: 0, buf: null, branch: null, doors: null, daggers: [], blasts: [], burn: false, weapon: "pistol", weaponThen: "",
+  lock: null, msgs: [], st: null, results: [], flash: 0, best: 0, final: null, tier: 0, buf: null, branch: null, doors: null, daggers: [], blasts: [], patches: [], burn: false, weapon: "pistol", weaponThen: "",
   net: { hosted: false, name: "", draft: "", guest: false, busy: false, loading: false, err: "", status: "", retry: false, board: [], best: 0, boardKey: "", boardStage: -1 } };
 const clampP = v => Math.max(0, Math.min(15, v));
 function msg(s) { G.msgs.push(s); if (G.msgs.length > 2) G.msgs.shift(); }
@@ -169,7 +169,7 @@ function newGame() {
 }
 function startSegment(i) {
   if (typeof clearFx === "function") clearFx();
-  G.seg = i; G.queue = SEGS[i].queue.split(" "); G.enemies = []; G.lock = null; G.daggers = []; G.blasts = []; G.burn = false; G.perkN = 0; G.nextSpawn = G.clock + 2.8;
+  G.seg = i; G.queue = SEGS[i].queue.split(" "); G.enemies = []; G.lock = null; G.daggers = []; G.blasts = []; G.patches = []; G.burn = false; G.perkN = 0; G.nextSpawn = G.clock + 2.8;
   G.st = newStats();   // stats per stage
   G.cap = STAGES[i].cap || 0; G.state = "play"; G.wave = { name: SEGS[i].name, t0: G.clock }; msg("Wave " + (i + 1) + ": " + SEGS[i].name);
 }
@@ -304,7 +304,7 @@ function update(dt) {
     if (e._sumCool > 0) e._sumCool -= dt;
     if (e.gray > 0) { e.gray -= dt; e.born += dt; }
     if (TYPES[e.type].auto) grenadierTick(e);
-    if (e.fire !== undefined && !(e.stagger > 0) && !(e.gray > 0) && (e.fire -= dt) <= 0) { e.fire += PERK.burn; trim(e); if (!G.enemies.includes(e)) continue; }   // ray gun: burning words lose a letter every PERK.burn s
+    if (e.fire !== undefined && !(e.stagger > 0) && !(e.gray > 0) && (e.fire -= dt) <= 0) { e.fire += e.burnRate || PERK.burn; trim(e); if (!G.enemies.includes(e)) continue; }   // ray gun: burning words lose a letter every PERK.burn s
     if (G.clock - e.born < e.life) continue;
     if (G.lock === e) G.lock = null;
     if (TYPES[e.type].citizen) { G.st.lost++; msg("The prisoner is lost..."); G.enemies.splice(G.enemies.indexOf(e), 1); }
@@ -318,6 +318,16 @@ function update(dt) {
     const d = G.daggers[i]; d.t += dt;
     if (d.grenade && !d.rel && d.t >= d.wind) { d.rel = true; hook("release", d); }
     if (d.t >= d.dur) { G.daggers.splice(i, 1); if (d.grenade) hook("boom", { player: true }); loseLife(); if (G.state === "over") return; if (d.grenade && !G.burn) { G.burn = true; msg("You are on fire! Finish your next target clean"); hook("ignite"); } }
+  }
+  for (let i = G.patches.length - 1; i >= 0; i--) {   // crossbow ground fire: the first PERK.uses enemies to walk in catch fire
+    const p = G.patches[i], rx = PERK.patch * p.s + 10, ry = rx * 0.35;
+    for (const x of G.enemies) {
+      if (p.uses <= 0 || p.hit.includes(x) || TYPES[x.type].bat || TYPES[x.type].citizen) continue;
+      const Q = pos(x), dx = (Q.x - p.x) / rx, dy = (Q.y - p.y) / ry;
+      if (dx * dx + dy * dy > 1) continue;
+      p.hit.push(x); p.uses--; if (x.fire === undefined) { x.fire = x.burnRate = PERK.xburn; hook("aflame", x); }
+    }
+    if (p.uses <= 0) { G.patches.splice(i, 1); hook("patchout", p); }
   }
   for (let i = G.blasts.length - 1; i >= 0; i--) { const b = G.blasts[i]; b.t += dt; if (b.t >= b.fuse) { G.blasts.splice(i, 1); detonate(b); } }
   if (!G.queue.length && !G.enemies.length && !G.blasts.length) finishSegment();
@@ -350,16 +360,19 @@ const WEAPONS = [
   { id: "ar", name: "SUPPRESSED AR", note: "Whisper quiet. Fully kitted.", snd: "ar", perk: "Every 4th key also takes a letter off the end of your target." },
   { id: "ray", name: "RAY GUN", note: "Atomic. Slightly illegal.", snd: "ray", perk: "Sets what it hits on fire: a burning word loses a letter every 1/4 s." },
   { id: "shotgun", name: "DOUBLE BARREL", note: "Subtle it is not.", snd: "dbl", perk: "Every key also takes a letter off each enemy around your target." },
-  { id: "xbow", name: "CROSSBOW", note: "Silent. Medieval. Efficient.", snd: "twang", perk: "Bolts pass through: every key takes a letter off enemies right behind your target." }
+  { id: "xbow", name: "CROSSBOW", note: "Silent. Medieval. Efficient.", snd: "twang", perk: "Bolts pass through enemies right behind your target; a killing bolt sets the ground alight." }
 ];
 const WEAPON_AT = 2;
 /* ---- weapon perks. A trim takes one letter off the end of the untyped part of a word (and any space left dangling); a word
-   trimmed down to what you have typed is finished. Kills a perk finishes on an enemy you never typed score rank PERK.rank (1 = B).
+   trimmed down to what you have typed is finished. Crossbow: the key that kills a target fires a flaming bolt that leaves a
+   ground fire (G.patches) PERK.patch * scale wide where it stood; the first PERK.uses enemies to walk into it catch fire and lose
+   a letter every PERK.xburn s (a third of the ray gun's rate), then it goes out. Bats and prisoners pass over it.
+   Kills a perk finishes on an enemy you never typed score rank PERK.rank (1 = B).
    every: correct keys per AR trim (the shotgun and crossbow trim on every correct key). burn: seconds per letter while a word burns (ray gun).
    splash: shotgun radius around the target, in screen pixels at full scale. bolt: crossbow half-width at full scale; the bolt
    flies from the bottom centre of the screen through the target's chest and hits every enemy further back whose chest lies within
    bolt * its own scale (+12 px) of that line. ---- */
-const PERK = { every: 4, burn: 0.25, splash: 400, bolt: 60, rank: 1 };
+const PERK = { every: 4, burn: 0.25, splash: 400, bolt: 60, rank: 1, xburn: 0.75, patch: 70, uses: 2 };
 const wordEnd = e => e.word.length - (e.cut || 0);   // letters past the end were trimmed off; they stay drawn (dimmed) so nothing shifts
 function trim(e) {
   if (!G.enemies.includes(e) || e.stagger > 0 || e.gray > 0) return;
@@ -459,8 +472,12 @@ function key(k) {
     if (e.firstT === null) e.firstT = G.clock;
     e.lastT = G.clock; e.idx++; hook("hit", e);
     while (!CFG.SPACES && e.word[e.idx] === " ") e.idx++;
-    if (G.weapon === "ray" && e.fire === undefined && !TYPES[e.type].citizen) { e.fire = PERK.burn; hook("aflame", e); }
+    if (G.weapon === "ray" && e.fire === undefined && !TYPES[e.type].citizen) { e.fire = e.burnRate = PERK.burn; hook("aflame", e); }
+    const P0 = G.weapon === "xbow" ? pos(e) : null;
     if (e.idx >= wordEnd(e)) kill(e);
+    if (P0 && !G.enemies.includes(e) && !TYPES[e.type].bat && !TYPES[e.type].citizen) {   // crossbow: the killing bolt is a flaming one
+      const p = { x: P0.x, y: P0.y, s: P0.s * P0.k, uses: PERK.uses, hit: [] }; G.patches.push(p); hook("flamebolt", { p, y0: P0.y - 150 * P0.s * P0.k });
+    }
     if (++G.perkN % PERK.every === 0 || G.weapon === "shotgun" || G.weapon === "xbow") perkShot(e);   // AR every PERK.every-th key; shotgun and crossbow every key
   } else {
     G.st.wrong++; hook("miss", e);
@@ -922,8 +939,8 @@ const music = (() => {
 })();
 /* ---- effects (driven by hooks from the game logic) ---- */
 let NOW = 0, shake = 0, redFlash = 0, BG = null;
-const parts = [], deaths = [], floats = [], lens = [], stains = [], drips = [], bats = [], chunks = [], booms = [], fires = []; let nextDrip = 1, nextBat = 7, pistolT = -9, pistolShot = 0;
-function clearFx() { [parts, deaths, floats, lens, stains, drips, bats, chunks, booms, fires].forEach(a => { a.length = 0; }); pistolT = -9; pistolShot = 0; }
+const parts = [], deaths = [], floats = [], lens = [], stains = [], drips = [], bats = [], chunks = [], booms = [], fires = [], fbolts = []; let nextDrip = 1, nextBat = 7, pistolT = -9, pistolShot = 0;
+function clearFx() { [parts, deaths, floats, lens, stains, drips, bats, chunks, booms, fires, fbolts].forEach(a => { a.length = 0; }); pistolT = -9; pistolShot = 0; }
 function burst(x, y, n, cols, sp, life) { for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, v = sp * (0.3 + Math.random()); parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - sp * 0.5, life: life * (0.6 + Math.random() * 0.6), age: 0, col: cols[i % cols.length], sz: 1.5 + Math.random() * 2 }); } }
 function pos(e) {
   const hold = e.hold || 0, u = Math.max(0, Math.min(0.999, (G.clock - e.born - hold) / (e.life - hold))), s = 1 / (1 + 6 * (1 - u));
@@ -935,6 +952,8 @@ hooks.miss = e => { e._m = 0.25; snd.miss(); };
 const TRIM_COL = { ar: ["#ffd27a", "#fff0c0"], ray: ["#ffb040", "#ff6a20", "#ffe080"], shotgun: ["#ff9a40", "#ffd080", "#c84a20"], xbow: ["#e8d8b0", "#a88a5a"] };
 hooks.trim = e => { const P = pos(e), y = P.y - (e.type === "bat" ? 30 : e.lane === 1 ? 100 : 155) * P.s * P.k; e._t = 0.15; burst(P.x + 40 * P.s, y, 5, TRIM_COL[G.weapon] || TRIM_COL.ar, 120, 0.3); };
 hooks.aflame = e => snd.ignite();
+hooks.flamebolt = o => { fbolts.push({ x: o.p.x, y: o.y0, t0: NOW }); snd.ignite(); burst(o.p.x, o.p.y - 6, 10, ["#ffb040", "#ff6a20", "#ffe080"], 160, 0.4); };
+hooks.patchout = p => burst(p.x, p.y - 4, 8, ["#3a3028", "#6a5a4a"], 90, 0.6);
 hooks.damage = () => { shake = 0.4; redFlash = 0.5; snd.hurt(); for (let i = 0; i < 8; i++) lens.push({ x: 120 + Math.random() * 720, y: 40 + Math.random() * 330, r: 18 + Math.random() * 40, t0: NOW }); };
 hooks.door = () => snd.door();
 hooks.armor = e => {
@@ -1429,6 +1448,14 @@ function render(c, now) {
   if (shake > 0) { shake -= dt; c.translate((Math.random() - 0.5) * 36 * shake, (Math.random() - 0.5) * 26 * shake); }
   drawStage(c);
   for (let i = stains.length - 1; i >= 0; i--) { const s = stains[i], a = (NOW - s.t0) / 14; if (a >= 1) { stains.splice(i, 1); continue; } c.fillStyle = s.scorch ? "rgba(12,10,9," + 0.7 * (1 - a) + ")" : "rgba(70,6,5," + 0.55 * (1 - a) + ")"; c.beginPath(); c.ellipse(s.x, s.y + 4, 74 * s.s, 15 * s.s, 0, 0, 6.283); c.fill(); }
+  if (G.state === "play" || G.state === "pause") G.patches.forEach(p => {   // crossbow ground fire
+    const rx = PERK.patch * p.s + 10; c.save(); c.globalCompositeOperation = "lighter";
+    const g = c.createRadialGradient(p.x, p.y, 0, p.x, p.y, rx * 1.3); g.addColorStop(0, "rgba(255,140,40,.35)"); g.addColorStop(1, "rgba(255,90,20,0)"); c.fillStyle = g; c.beginPath(); c.ellipse(p.x, p.y, rx * 1.3, rx * 0.45, 0, 0, 6.283); c.fill();
+    for (let j = -2; j <= 2; j++) tongues(c, p.x + j * rx * 0.38, p.y - Math.abs(j) * 2, 3, (34 - 6 * Math.abs(j)) * p.s + 6, 26 * p.s + 4, 9 * p.s + 3, 8 * p.s + 2);
+    c.restore();
+  });
+  for (let i = fbolts.length - 1; i >= 0; i--) { const b = fbolts[i], a = 1 - (NOW - b.t0) / 0.3; if (a <= 0) { fbolts.splice(i, 1); continue; }
+    c.save(); c.globalCompositeOperation = "lighter"; c.lineCap = "round"; [[9, "rgba(255,90,20,"], [4, "rgba(255,200,90,"], [1.5, "rgba(255,250,220,"]].forEach(q => { c.strokeStyle = q[1] + a + ")"; c.lineWidth = q[0]; c.beginPath(); c.moveTo(CX, 470); c.lineTo(b.x, b.y); c.stroke(); }); c.restore(); }
   drawAmbient(c, dt, G.state === "play");
   const playing = G.state === "play" || G.state === "pause" || G.state === "over" || G.state === "doors";
   if (G.state === "doors") { chunks.length = 0; parts.length = 0; stains.length = 0; lens.length = 0; floats.length = 0; deaths.length = 0; drawDoors(c); }
