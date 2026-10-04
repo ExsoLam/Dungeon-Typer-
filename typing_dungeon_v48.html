@@ -367,12 +367,12 @@ const WEAPON_AT = 2;
    trimmed down to what you have typed is finished. Crossbow: the key that kills a target fires a flaming bolt that leaves a
    ground fire (G.patches) PERK.patch * scale wide where it stood; the first PERK.uses enemies to walk into it catch fire and lose
    a letter every PERK.xburn s (a third of the ray gun's rate), then it goes out. Bats and prisoners pass over it.
-   Kills a perk finishes on an enemy you never typed score rank PERK.rank (1 = B).
+   Kills a perk finishes on an enemy you never typed score rank PERK.rank (0 = A).
    every: correct keys per AR trim (the shotgun and crossbow trim on every correct key). burn: seconds per letter while a word burns (ray gun).
    splash: shotgun radius around the target, in screen pixels at full scale. bolt: crossbow half-width at full scale; the bolt
    flies from the bottom centre of the screen through the target's chest and hits every enemy further back whose chest lies within
    bolt * its own scale (+12 px) of that line. ---- */
-const PERK = { every: 4, burn: 0.25, splash: 400, bolt: 60, rank: 1, xburn: 0.75, patch: 70, uses: 2 };
+const PERK = { every: 4, burn: 0.25, splash: 400, bolt: 60, rank: 0, xburn: 0.75, patch: 70, uses: 2 };
 const wordEnd = e => e.word.length - (e.cut || 0);   // letters past the end were trimmed off; they stay drawn (dimmed) so nothing shifts
 function trim(e) {
   if (!G.enemies.includes(e) || e.stagger > 0 || e.gray > 0) return;
