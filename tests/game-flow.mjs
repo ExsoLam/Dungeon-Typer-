@@ -71,8 +71,10 @@ for (const weapon of ['pistol', 'ar', 'ray', 'shotgun', 'xbow']) {
     'abcd'.split('').forEach(k => key(k)); R.shotTarget = vis(a); R.shotNear = vis(b);
     // crossbow: an enemy further back on the same path is hit, the target is not
     G.enemies = []; G.lock = null; G.weapon = 'xbow'; G.perkN = 0; a = mk('abcdefghij'); a.born = G.clock - 40; 
-    const f = { ...a, word: 'uvwxyzabcd', idx: 0, firstT: null, cut: 0, born: G.clock - 5 }; G.enemies.push(f);
-    'abcd'.split('').forEach(k => key(k)); R.boltTarget = vis(a); R.boltBehind = vis(f);
+    const f = { ...a, word: 'uvwxyzabcd', idx: 0, firstT: null, cut: 0, born: a.born + 4 }; G.enemies.push(f);   // same path, a few steps behind
+    const zs = Object.keys(STAGES[G.seg].zones), far = zs.map(z => ({ ...f, zone: z, lane: (a.lane + 2) % 3, word: 'mnopqrstuv', cut: 0 })).sort((p, q) => Math.abs(pos(q).x - pos(a).x) - Math.abs(pos(p).x - pos(a).x))[0];
+    G.enemies.push(far); R.sideGap = Math.round(Math.abs(pos(far).x - pos(a).x));
+    'abcd'.split('').forEach(k => key(k)); R.boltTarget = vis(a); R.boltBehind = vis(f); R.boltSide = vis(far);
     // untyped enemy finished by a perk scores rank E
     G.enemies = []; G.lock = null; let rk = -1; hooks.kill = o => { rk = o.rk; }; const c = mk('z'); trim(c); R.assistRank = rk; R.lastRank = RANKS.length - 1;
     R.kept = a.word;
@@ -87,6 +89,7 @@ for (const weapon of ['pistol', 'ar', 'ray', 'shotgun', 'xbow']) {
   assert.equal(R.shotNear, 'klmnop', 'shotgun trims an enemy beside the target on every key');
   assert.equal(R.boltTarget, 'abcdefghij', 'crossbow leaves the target alone');
   assert.equal(R.boltBehind, 'uvwxyz', 'crossbow bolts trim an enemy behind the target on every key');
+  assert.equal(R.boltSide, 'mnopqrstuv', 'crossbow misses an enemy further back but off to the side (' + R.sideGap + ' px)');
   assert.equal(R.kept, 'abcdefghij', 'trimmed letters stay in the word (drawn dimmed), so the plate does not shift');
   assert.equal(R.assistRank, R.lastRank, 'a perk kill of an untyped enemy is rank E');
   console.log('weapon perk rules passed');

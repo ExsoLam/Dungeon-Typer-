@@ -350,14 +350,16 @@ const WEAPONS = [
   { id: "ar", name: "SUPPRESSED AR", note: "Whisper quiet. Fully kitted.", snd: "ar", perk: "Every 4th key also takes a letter off the end of your target." },
   { id: "ray", name: "RAY GUN", note: "Atomic. Slightly illegal.", snd: "ray", perk: "Sets what it hits on fire: a burning word loses a letter every 1/4 s." },
   { id: "shotgun", name: "DOUBLE BARREL", note: "Subtle it is not.", snd: "dbl", perk: "Every key also takes a letter off each enemy around your target." },
-  { id: "xbow", name: "CROSSBOW", note: "Silent. Medieval. Efficient.", snd: "twang", perk: "Bolts pass through: every key takes a letter off every enemy further back than your target." }
+  { id: "xbow", name: "CROSSBOW", note: "Silent. Medieval. Efficient.", snd: "twang", perk: "Bolts pass through: every key takes a letter off enemies right behind your target." }
 ];
 const WEAPON_AT = 2;
 /* ---- weapon perks. A trim takes one letter off the end of the untyped part of a word (and any space left dangling); a word
    trimmed down to what you have typed is finished. Kills a perk finishes on an enemy you never typed score rank E.
    every: correct keys per AR trim (the shotgun and crossbow trim on every correct key). burn: seconds per letter while a word burns (ray gun).
-   splash: shotgun radius around the target, in screen pixels at full scale. The crossbow hits every enemy further back. ---- */
-const PERK = { every: 4, burn: 0.25, splash: 400 };
+   splash: shotgun radius around the target, in screen pixels at full scale. bolt: crossbow half-width at full scale; the bolt
+   flies from the bottom centre of the screen through the target's chest and hits every enemy further back whose chest lies within
+   bolt * its own scale (+12 px) of that line. ---- */
+const PERK = { every: 4, burn: 0.25, splash: 400, bolt: 60 };
 const wordEnd = e => e.word.length - (e.cut || 0);   // letters past the end were trimmed off; they stay drawn (dimmed) so nothing shifts
 function trim(e) {
   if (!G.enemies.includes(e) || e.stagger > 0 || e.gray > 0) return;
@@ -370,10 +372,14 @@ function perkShot(e) {   // runs on every PERK.every-th correct key, with e the 
   const w = G.weapon, P = pos(e);
   if (w === "ar") { trim(e); return; }
   if (w !== "shotgun" && w !== "xbow") return;
+  const ax = P.x - CX, ay = P.y - 150 * P.s * P.k - H, al = Math.hypot(ax, ay) || 1;   // crossbow line: screen bottom centre -> target chest
   G.enemies.slice().forEach(x => {
     if (x === e || TYPES[x.type].citizen) return;
     const Q = pos(x);
-    if (w === "shotgun" ? Math.hypot(Q.x - P.x, Q.y - P.y) < PERK.splash * Math.max(P.s, Q.s) + 80 : Q.s < P.s) trim(x);   // crossbow: anything further back
+    if (w === "shotgun") { if (Math.hypot(Q.x - P.x, Q.y - P.y) < PERK.splash * Math.max(P.s, Q.s) + 80) trim(x); return; }
+    if (Q.s >= P.s) return;   // crossbow: only further back than the target
+    const off = Math.abs((Q.x - CX) * ay - (Q.y - 150 * Q.s * Q.k - H) * ax) / al;   // distance of its chest from the bolt line
+    if (off < PERK.bolt * Q.s * Q.k + 12) trim(x);
   });
 }
 const weaponDef = () => WEAPONS.find(w => w.id === G.weapon) || WEAPONS[0];
